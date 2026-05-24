@@ -11,6 +11,84 @@ MAIN_PI_URL = os.environ.get("GWL_MAIN_PI_URL")
 
 REQUEST_TIMEOUT = 3
 
+# -----------------------------
+# Public Zone Visibility
+# -----------------------------
+# Only zones listed here will be visible on the public UI.
+# Use exact zone names from the first Pi.
+PUBLIC_ALLOWED_ZONES = {
+    "Kulim Hi Tech",
+    "Kulim",
+    "Muar",
+    "Kuala Selangor",
+    "Kuala Langat",
+    "MBSJ",
+    "Port Dickson",
+    "Bentong",
+    "Kota Laksamana",
+    "Ayer Keroh",
+    "Pekan",
+    "Gombak",
+    "Kluang",
+    "Perak1_Aeon",
+    "Perak2_tolpulai",
+    "Perak3_rokam",
+    "Kelantan1_STL2024",
+    "Kelantan1_STL2025",
+    "Kelantan1_STL2025_2",
+    "JKR Terengganu",
+    "MBIP Pontian Link",
+    "Kota Tinggi",
+    "MBKT",
+    "Bukit Beruang",
+    "NTC Kulim",
+    "Ayer Keroh Gong",
+    "AMJ1",
+    "AMJ2 Melaka Sentral",
+    "Balai Polis Bandar Hilir",
+    "Lebuh SPA"
+
+}
+
+def is_zone_public(zone_name):
+    return zone_name in PUBLIC_ALLOWED_ZONES
+
+
+def filter_dashboard_status(data):
+    allowed_zones = PUBLIC_ALLOWED_ZONES
+
+    filtered_zones = [
+        item for item in data.get("zones", [])
+        if item.get("zone") in allowed_zones
+    ]
+
+    filtered_pending_zones = [
+        item for item in data.get("pending_zones", [])
+        if item.get("zone") in allowed_zones
+    ]
+
+    visible_total_junctions = sum(
+        item.get("total", 0)
+        for item in filtered_zones + filtered_pending_zones
+    )
+
+    visible_offline_junctions = sum(
+        item.get("offline", 0)
+        for item in filtered_zones + filtered_pending_zones
+    )
+
+    data["zones"] = filtered_zones
+    data["pending_zones"] = filtered_pending_zones
+    data["total_junctions"] = visible_total_junctions
+    data["offline_junctions"] = visible_offline_junctions
+
+    data["all_offline"] = (
+        visible_total_junctions > 0
+        and visible_offline_junctions == visible_total_junctions
+    )
+
+    return data
+
 
 def require_main_pi_url():
     if not MAIN_PI_URL:
@@ -71,12 +149,31 @@ def monitor():
 @app.route("/api/zones")
 def public_api_zones():
     data, status = fetch_from_main_pi("/api/zones")
-    return jsonify(data), status
+
+    if status != 200:
+        return jsonify(data), status
+
+    if not isinstance(data, list):
+        return jsonify(data), status
+
+    filtered_zones = [
+        zone for zone in data
+        if zone in PUBLIC_ALLOWED_ZONES
+    ]
+
+    return jsonify(filtered_zones), status
 
 
 @app.route("/api/dashboard_status")
 def public_api_dashboard_status():
     data, status = fetch_from_main_pi("/api/dashboard_status")
+
+    if status != 200:
+        return jsonify(data), status
+
+    if isinstance(data, dict):
+        data = filter_dashboard_status(data)
+
     return jsonify(data), status
 
 
@@ -85,10 +182,19 @@ def public_api_status():
     zone = request.args.get("zone")
     since = request.args.get("since")
 
-    params = {}
+    if not zone:
+        return jsonify({
+            "error": "Zone is required."
+        }), 400
 
-    if zone:
-        params["zone"] = zone
+    if not is_zone_public(zone):
+        return jsonify({
+            "error": "This zone is not available for public viewing."
+        }), 403
+
+    params = {
+        "zone": zone
+    }
 
     if since:
         params["since"] = since
