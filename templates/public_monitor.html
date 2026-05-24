@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GWL Monitor</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial;
+    background: #f2f3f5;
+    margin: 0;
+}
+
+.top-bar {
+    background: white;
+    padding: 15px 20px;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.top-bar h2 {
+    margin: 0;
+}
+
+.public-badge {
+    background: #e8f5e9;
+    color: #2e7d32;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.nav-btn {
+    text-decoration: none;
+    font-size: 14px;
+    background: #333;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    display: inline-block;
+}
+
+.nav-btn:hover {
+    background: #555;
+}
+
+.controls {
+    background: white;
+    margin: 15px;
+    padding: 15px;
+    border-radius: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+select {
+    padding: 10px;
+    font-size: 15px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+}
+
+.table-wrap {
+    margin: 15px;
+    overflow-x: auto;
+    background: white;
+    border-radius: 12px;
+    padding: 10px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 780px;
+    background: white;
+    border: 1px solid #ccc;
+
+    /* Updated dynamically by JavaScript */
+    --name-col-width: 120px;
+}
+
+th, td {
+    padding: 9px;
+    border: 1px solid #ccc;
+    text-align: center;
+    font-size: 14px;
+}
+
+th:first-child,
+td:first-child {
+    text-align: left;
+}
+
+th:first-child,
+td:first-child {
+    width: var(--name-col-width);
+    max-width: var(--name-col-width);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+th {
+    background: #f0f0f0;
+    font-weight: bold;
+}
+
+tr:nth-child(even) {
+    background: #fafafa;
+}
+
+tr:hover {
+    background: #f1f7ff;
+}
+
+.status-sync {
+    background: #4caf50;
+    color: white;
+    font-weight: bold;
+}
+
+.status-not-sync {
+    background: #f44336;
+    color: white;
+    font-weight: bold;
+}
+
+.status-offline {
+    background: #999;
+    color: white;
+    font-weight: bold;
+}
+
+.status-ind {
+    background: #d3d3d3;
+    color: black;
+    font-weight: bold;
+}
+
+.status-pamb {
+    background: #fff3cd;
+    color: #7a5a00;
+    font-weight: bold;
+}
+
+.state-box {
+    display: inline-block;
+    min-width: 60px;
+    padding: 5px 9px;
+    border-radius: 6px;
+    font-weight: bold;
+    color: white;
+    font-family: monospace;
+    font-size: 16px;
+}
+
+.state-green {
+    background: #4caf50;
+}
+
+.state-flash {
+    background: #c8e6c9;
+    color: black;
+}
+
+.state-amber {
+    background: #ff9800;
+    color: black;
+}
+
+.state-red {
+    background: #f44336;
+}
+
+.state-unknown {
+    background: #ddd;
+    color: #555;
+}
+
+.state-pamb {
+    background: #d6a800;
+    color: black;
+    animation: pambSlowFlash 1.5s infinite;
+}
+
+@keyframes pambSlowFlash {
+    0% {
+        background: #6f5a00;
+    }
+    50% {
+        background: #ffd54f;
+    }
+    100% {
+        background: #6f5a00;
+    }
+}
+
+.error-box {
+    margin: 15px;
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    color: #b00020;
+    font-weight: bold;
+    border-left: 8px solid #b00020;
+}
+
+.footer-note {
+    margin: 15px;
+    color: #666;
+    font-size: 13px;
+}
+
+/* -----------------------------
+   PHONE COMPACT TABLE MONITOR
+----------------------------- */
+@media (max-width: 767px) {
+    body {
+        font-size: 13px;
+    }
+
+    .top-bar {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 10px 12px;
+        gap: 8px;
+    }
+
+    .top-bar h2 {
+        font-size: 18px;
+        margin: 0;
+    }
+
+    .top-bar > div {
+        width: 100%;
+    }
+
+    .nav-btn {
+        width: 100%;
+        text-align: center;
+        padding: 10px;
+        font-size: 14px;
+    }
+
+    .controls {
+        margin: 8px;
+        padding: 8px;
+        display: block;
+    }
+
+    .controls label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 13px;
+    }
+
+    select {
+        width: 100%;
+        padding: 9px;
+        font-size: 14px;
+    }
+
+    .table-wrap {
+        margin: 8px;
+        padding: 0;
+        overflow-x: auto;
+        background: white;
+        border-radius: 8px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+        min-width: 640px;
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+
+    th, td {
+        padding: 7px 6px;
+        font-size: 14px;
+        border: 1px solid #ccc;
+        white-space: nowrap;
+    }
+
+    th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #f0f0f0;
+    }
+
+    th:first-child,
+    td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 3;
+        background: white;
+        width: var(--name-col-width);
+        min-width: var(--name-col-width);
+        max-width: var(--name-col-width);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    th:first-child {
+        background: #f0f0f0;
+        z-index: 4;
+    }
+
+    .status-sync,
+    .status-not-sync,
+    .status-offline,
+    .status-ind,
+    .status-pamb {
+        padding: 7px 6px;
+        font-size: 14px;
+        white-space: nowrap;
+    }
+
+    .state-box {
+        min-width: 45px;
+        padding: 4px 7px;
+        font-size: 14px;
+    }
+
+    .error-box {
+        margin: 8px;
+        padding: 12px;
+        font-size: 13px;
+    }
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="top-bar">
+    <div>
+        <h2>GWL Detailed Monitor</h2>
+    </div>
+
+    <div>
+        <a href="/" class="nav-btn">Zone Overview</a>
+    </div>
+</div>
+
+<div class="controls">
+    <label><strong>Select Zone:</strong></label>
+    <select id="zoneSelect" onchange="zoneChanged()"></select>
+</div>
+
+<div id="errorBox"></div>
+
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Δt</th>
+                <th>Phase</th>
+                <th>State</th>
+                <th>Mode</th>
+                <th>Cycle</th>
+                <th>Seen</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+</div>
+
+<script>
+let currentZone = null;
+let allData = {};
+let requestToken = 0;
+let isLoading = false;
+let currentZoneVersion = 0;
+let lastUpdateTime = 0;
+
+function updateNameColumnWidth() {
+    const table = document.querySelector("table");
+
+    if (!table) return;
+
+    const names = Object.values(allData).map(j => j.name || "");
+
+    if (names.length === 0) {
+        table.style.setProperty("--name-col-width", "120px");
+        return;
+    }
+
+    const longestName = names.reduce((longest, name) => {
+        return name.length > longest.length ? name : longest;
+    }, "");
+
+    /*
+       Estimate width:
+       - average character width around 8px
+       - add padding buffer
+       - minimum 75px
+       - maximum 160px to avoid name column becoming too wide
+    */
+    const estimatedWidth = longestName.length * 8 + 24;
+    const finalWidth = Math.max(75, Math.min(estimatedWidth, 160));
+
+    table.style.setProperty("--name-col-width", `${finalWidth}px`);
+}
+
+function formatLastSeen(lastSeen) {
+    if (!lastSeen) return "-";
+
+    const now = Date.now() / 1000;
+    const age = Math.max(0, Math.floor(now - lastSeen));
+
+    if (age < 60) {
+        return `${age}s ago`;
+    }
+
+    const minutes = Math.floor(age / 60);
+    return `${minutes}m ago`;
+}
+
+function renderState(lamp, time, movement) {
+    if (
+        lamp === null ||
+        lamp === undefined ||
+        time === null ||
+        time === undefined
+    ) {
+        return "-";
+    }
+
+    let cls = "";
+
+    if (movement === "P.AMB") {
+        cls = "state-pamb";
+        return `<span class="state-box ${cls}">${time}</span>`;
+    }
+
+    switch (lamp) {
+        case 0:
+            cls = "state-green";
+            break;
+
+        case 1:
+            cls = "state-flash";
+            break;
+
+        case 2:
+            cls = "state-amber";
+            break;
+
+        case 3:
+            cls = "state-red";
+            break;
+
+        default:
+            cls = "state-unknown";
+            break;
+    }
+
+    return `<span class="state-box ${cls}">${time}</span>`;
+}
+
+function getStatusDisplay(j) {
+    if (!j.connected || j.sync_status === "OFFLINE") {
+        return {
+            text: "OFFLINE",
+            className: "status-offline"
+        };
+    }
+
+    if (j.sync_status === "ND") {
+        return {
+            text: "ND/BD",
+            className: "status-offline"
+        };
+    }
+
+    if (j.sync_status === "P.AMB") {
+        return {
+            text: "P.AMB",
+            className: "status-pamb"
+        };
+    }
+
+    if (j.sync_status === "IND") {
+        return {
+            text: "IND",
+            className: "status-ind"
+        };
+    }
+
+    if (j.sync_status === true) {
+        return {
+            text: "SYNC",
+            className: "status-sync"
+        };
+    }
+
+    if (j.sync_status === false) {
+        return {
+            text: "NOT SYNC",
+            className: "status-not-sync"
+        };
+    }
+
+    return {
+        text: "-",
+        className: "status-ind"
+    };
+}
+
+async function loadZones() {
+    const errorBox = document.getElementById("errorBox");
+
+    try {
+        const response = await fetch("/api/zones");
+        const zones = await response.json();
+
+        if (!response.ok || zones.error) {
+            errorBox.innerHTML = `<div class="error-box">${zones.error || "Unable to load zones."}</div>`;
+            return;
+        }
+
+        const select = document.getElementById("zoneSelect");
+        select.innerHTML = "";
+
+        zones.forEach(zone => {
+            const option = document.createElement("option");
+            option.value = zone;
+            option.text = zone;
+            select.appendChild(option);
+        });
+
+        if (!currentZone && zones.length > 0) {
+            const params = new URLSearchParams(window.location.search);
+            const requestedZone = params.get("zone");
+
+            if (requestedZone && zones.includes(requestedZone)) {
+                currentZone = requestedZone;
+            } else {
+                currentZone = zones[0];
+            }
+
+            select.value = currentZone;
+        }
+
+        errorBox.innerHTML = "";
+
+    } catch (error) {
+        errorBox.innerHTML = `<div class="error-box">Public UI cannot reach local proxy.</div>`;
+    }
+}
+
+async function loadData() {
+    if (!currentZone || isLoading) return;
+
+    const zoneVersion = currentZoneVersion;
+    isLoading = true;
+
+    try {
+        const token = ++requestToken;
+
+        let url = `/api/status?zone=${encodeURIComponent(currentZone)}`;
+
+        if (lastUpdateTime) {
+            url += `&since=${lastUpdateTime}`;
+        }
+
+        const response = await fetch(url);
+        const result = await response.json();
+
+        if (!response.ok || result.error) {
+            document.getElementById("errorBox").innerHTML =
+                `<div class="error-box">${result.error || "Unable to load status."}</div>`;
+            return;
+        }
+
+        if (zoneVersion !== currentZoneVersion) return;
+        if (token !== requestToken) return;
+
+        const newData = result.data || {};
+
+        Object.entries(newData).forEach(([ip, j]) => {
+            allData[ip] = {
+                ...allData[ip],
+                ...j
+            };
+        });
+
+        lastUpdateTime = result.server_time || Date.now() / 1000;
+
+        document.getElementById("errorBox").innerHTML = "";
+        renderTable();
+
+    } catch (error) {
+        document.getElementById("errorBox").innerHTML =
+            `<div class="error-box">Public UI cannot reach local proxy.</div>`;
+    } finally {
+        isLoading = false;
+    }
+}
+
+function zoneChanged() {
+    const select = document.getElementById("zoneSelect");
+    currentZone = select.value;
+
+    currentZoneVersion++;
+    allData = {};
+    lastUpdateTime = 0;
+    isLoading = false;
+
+    document.getElementById("tableBody").innerHTML = "";
+
+    loadData();
+}
+
+function renderTable() {
+    updateNameColumnWidth();
+
+    const tbody = document.getElementById("tableBody");
+    tbody.innerHTML = "";
+
+    const entries = Object.entries(allData).sort((a, b) => {
+        const nameA = a[1].name || a[0];
+        const nameB = b[1].name || b[0];
+        return nameA.localeCompare(nameB);
+    });
+
+    for (const [ip, j] of entries) {
+        const row = document.createElement("tr");
+
+        const status = getStatusDisplay(j);
+
+        const deltaText =
+            j.delta === null || j.delta === undefined
+                ? "-"
+                : j.delta;
+
+        const phaseText =
+            j.phase === null || j.phase === undefined
+                ? "-"
+                : `P${j.phase}`;
+
+        const cycleText =
+            j.last_cycle_length === null || j.last_cycle_length === undefined
+                ? "-"
+                : `${j.last_cycle_length}s`;
+
+        row.innerHTML = `
+            <td data-label="Name">${j.name || ip}</td>
+            <td data-label="Status" class="${status.className}">${status.text}</td>
+            <td data-label="Δt">${deltaText}</td>
+            <td data-label="Phase">${phaseText}</td>
+            <td data-label="State">${renderState(j.lamp_state, j.phase_sec, j.movement)}</td>
+            <td data-label="Mode">${j.movement === "P.AMB" ? "AF" : (j.movement || "-")}</td>
+            <td data-label="Cycle">${cycleText}</td>
+            <td data-label="Last Seen">${formatLastSeen(j.last_seen)}</td>
+        `;
+
+        tbody.appendChild(row);
+    }
+}
+
+async function init() {
+    await loadZones();
+    await loadData();
+}
+
+setInterval(loadData, 1000);
+setInterval(renderTable, 1000);
+
+init();
+</script>
+
+</body>
+</html>
