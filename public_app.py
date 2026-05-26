@@ -1,6 +1,8 @@
 from flask import Flask, jsonify, render_template, request
 import requests
 import os
+import time
+import threading
 
 app = Flask(__name__)
 
@@ -10,6 +12,27 @@ app = Flask(__name__)
 MAIN_PI_URL = os.environ.get("GWL_MAIN_PI_URL")
 
 REQUEST_TIMEOUT = 3
+
+# -----------------------------
+# Public API Cache
+# -----------------------------
+STATUS_CACHE_TTL = 1.0          # seconds
+DASHBOARD_CACHE_TTL = 5.0       # seconds
+ZONES_CACHE_TTL = 30.0          # seconds
+
+status_cache = {}
+dashboard_cache = {
+    "time": 0,
+    "data": None,
+    "status": 200
+}
+zones_cache = {
+    "time": 0,
+    "data": None,
+    "status": 200
+}
+
+cache_lock = threading.Lock()
 
 # -----------------------------
 # Public Zone Visibility
@@ -148,6 +171,15 @@ def monitor():
 
 @app.route("/api/zones")
 def public_api_zones():
+    now = time.time()
+
+    with cache_lock:
+        if (
+            zones_cache["data"] is not None
+            and now - zones_cache["time"] < ZONES_CACHE_TTL
+        ):
+            return jsonify(zones_cache["data"]), zones_cache["status"]
+
     data, status = fetch_from_main_pi("/api/zones")
 
     if status != 200:
@@ -161,11 +193,25 @@ def public_api_zones():
         if zone in PUBLIC_ALLOWED_ZONES
     ]
 
+    with cache_lock:
+        zones_cache["time"] = now
+        zones_cache["data"] = filtered_zones
+        zones_cache["status"] = status
+
     return jsonify(filtered_zones), status
 
 
 @app.route("/api/dashboard_status")
 def public_api_dashboard_status():
+    now = time.time()
+
+    with cache_lock:
+        if (
+            dashboard_cache["data"] is not None
+            and now - dashboard_cache["time"] < DASHBOARD_CACHE_TTL
+        ):
+            return jsonify(dashboard_cache["data"]), dashboard_cache["status"]
+
     data, status = fetch_from_main_pi("/api/dashboard_status")
 
     if status != 200:
@@ -174,13 +220,17 @@ def public_api_dashboard_status():
     if isinstance(data, dict):
         data = filter_dashboard_status(data)
 
+    with cache_lock:
+        dashboard_cache["time"] = now
+        dashboard_cache["data"] = data
+        dashboard_cache["status"] = status
+
     return jsonify(data), status
 
 
 @app.route("/api/status")
 def public_api_status():
     zone = request.args.get("zone")
-    since = request.args.get("since")
 
     if not zone:
         return jsonify({
@@ -192,14 +242,38 @@ def public_api_status():
             "error": "This zone is not available for public viewing."
         }), 403
 
-    params = {
-        "zone": zone
-    }
+    now = time.time()
+    cache_key = zone
 
-    if since:
-        params["since"] = since
+    # Return cached status if still fresh.
+    with cache_lock:
+        cached = status_cache.get(cache_key)
 
-    data, status = fetch_from_main_pi("/api/status", params=params)
+        if cached and now - cached["time"] < STATUS_CACHE_TTL:
+            print("CACHE HIT:", zone)
+            return jsonify(cached["data"]), cached["status"]
+
+    # IMPORTANT:
+    # Do not forward "since" for public cache.
+    # The cache must store full zone data, not partial updates.
+    print("CACHE MISS:", zone)
+    data, status = fetch_from_main_pi(
+        "/api/status",
+        params={
+            "zone": zone
+        }
+    )
+
+    # Cache successful response only.
+    # If main Pi has error, return error but do not overwrite good cache.
+    if status == 200:
+        with cache_lock:
+            status_cache[cache_key] = {
+                "time": now,
+                "data": data,
+                "status": status
+            }
+
     return jsonify(data), status
 
 
