@@ -35,6 +35,14 @@ zones_cache = {
 cache_lock = threading.Lock()
 
 # -----------------------------
+# Public Visitor Tracking
+# -----------------------------
+VISITOR_ACTIVE_WINDOW = 15.0  # seconds
+
+visitor_sessions = {}
+visitor_lock = threading.Lock()
+
+# -----------------------------
 # Public Zone Visibility
 # -----------------------------
 # Only zones listed here will be visible on the public UI.
@@ -154,16 +162,46 @@ def fetch_from_main_pi(path, params=None):
             "error": str(e)
         }, 500
 
+def record_visitor():
+    visitor_id = request.args.get("visitor_id")
+
+    if not visitor_id:
+        return
+
+    now = time.time()
+
+    with visitor_lock:
+        visitor_sessions[visitor_id] = now
+
+        expired_ids = [
+            sid for sid, last_seen in visitor_sessions.items()
+            if now - last_seen > VISITOR_ACTIVE_WINDOW
+        ]
+
+        for sid in expired_ids:
+            visitor_sessions.pop(sid, None)
+
+def get_active_visitor_count():
+    now = time.time()
+
+    with visitor_lock:
+        expired_ids = [
+            sid for sid, last_seen in visitor_sessions.items()
+            if now - last_seen > VISITOR_ACTIVE_WINDOW
+        ]
+
+        for sid in expired_ids:
+            visitor_sessions.pop(sid, None)
+
+        return len(visitor_sessions)
 
 @app.route("/")
 def public_dashboard():
     return render_template("public_dashboard.html")
 
-
 @app.route("/monitor")
 def monitor():
     return render_template("public_monitor.html")
-
 
 # -----------------------------
 # Read-only proxy APIs
@@ -230,6 +268,8 @@ def public_api_dashboard_status():
 
 @app.route("/api/status")
 def public_api_status():
+    record_visitor()
+
     zone = request.args.get("zone")
 
     if not zone:
@@ -276,6 +316,12 @@ def public_api_status():
 
     return jsonify(data), status
 
+@app.route("/api/visitor_count")
+def public_api_visitor_count():
+    return jsonify({
+        "active_visitors": get_active_visitor_count(),
+        "active_window_seconds": VISITOR_ACTIVE_WINDOW
+    })
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001)

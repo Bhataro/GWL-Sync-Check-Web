@@ -351,6 +351,9 @@ tr:hover {
 <div class="top-bar">
     <div>
         <h2>GWL Detailed Monitor</h2>
+        <div class="public-badge">
+            Active visitors: <span id="visitorCount">-</span>
+        </div>
     </div>
 
     <div>
@@ -390,6 +393,13 @@ let requestToken = 0;
 let isLoading = false;
 let currentZoneVersion = 0;
 let lastUpdateTime = 0;
+
+let visitorId = localStorage.getItem("gwl_public_visitor_id");
+
+if (!visitorId) {
+    visitorId = crypto.randomUUID();
+    localStorage.setItem("gwl_public_visitor_id", visitorId);
+}
 
 function updateNameColumnWidth() {
     const table = document.querySelector("table");
@@ -576,7 +586,7 @@ async function loadData() {
     try {
         const token = ++requestToken;
 
-        let url = `/api/status?zone=${encodeURIComponent(currentZone)}`;
+        let url = `/api/status?zone=${encodeURIComponent(currentZone)}&visitor_id=${encodeURIComponent(visitorId)}`;
 
         if (lastUpdateTime) {
             url += `&since=${lastUpdateTime}`;
@@ -677,6 +687,19 @@ function renderTable() {
     }
 }
 
+async function loadVisitorCount() {
+    try {
+        const response = await fetch("/api/visitor_count");
+        const result = await response.json();
+
+        document.getElementById("visitorCount").textContent =
+            result.active_visitors ?? "-";
+
+    } catch (error) {
+        document.getElementById("visitorCount").textContent = "-";
+    }
+}
+
 async function init() {
     await loadZones();
     await loadData();
@@ -684,8 +707,10 @@ async function init() {
 
 setInterval(loadData, 1000);
 setInterval(renderTable, 1000);
+setInterval(loadVisitorCount, 5000);
 
 init();
+loadVisitorCount();
 </script>
 
 </body>
