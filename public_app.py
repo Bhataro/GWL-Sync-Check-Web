@@ -250,13 +250,13 @@ def public_api_status():
         cached = status_cache.get(cache_key)
 
         if cached and now - cached["time"] < STATUS_CACHE_TTL:
-            print("CACHE HIT:", zone)
+            #print("CACHE HIT:", zone)
             return jsonify(cached["data"]), cached["status"]
 
     # IMPORTANT:
     # Do not forward "since" for public cache.
     # The cache must store full zone data, not partial updates.
-    print("CACHE MISS:", zone)
+    #print("CACHE MISS:", zone)
     data, status = fetch_from_main_pi(
         "/api/status",
         params={
