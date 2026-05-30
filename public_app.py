@@ -16,9 +16,9 @@ REQUEST_TIMEOUT = 3
 # -----------------------------
 # Public API Cache
 # -----------------------------
-STATUS_CACHE_TTL = 1.0          # seconds
-DASHBOARD_CACHE_TTL = 5.0       # seconds
-ZONES_CACHE_TTL = 30.0          # seconds
+STATUS_CACHE_TTL = 2.0          # seconds
+DASHBOARD_CACHE_TTL = 10.0       # seconds
+ZONES_CACHE_TTL = 60.0          # seconds
 
 status_cache = {}
 dashboard_cache = {
