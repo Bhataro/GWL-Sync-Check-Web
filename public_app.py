@@ -85,7 +85,145 @@ def is_zone_public(zone_name):
     return zone_name in PUBLIC_ALLOWED_ZONES
 
 
-def filter_dashboard_status(data):
+def build_public_summary_from_status(status_data):
+    """
+    Build public dashboard summary using full /api/status data from main Pi.
+
+    Summary:
+    1. fully_synced_zones / total_zones
+    2. online_junctions / total_junctions
+    """
+
+    zone_counts = {}
+
+    all_junctions = status_data.get("data", {})
+
+    for ip, state in all_junctions.items():
+        zone_name = state.get("zone")
+
+        if zone_name not in PUBLIC_ALLOWED_ZONES:
+            continue
+
+        if zone_name not in zone_counts:
+            zone_counts[zone_name] = {
+                "total": 0,
+                "sync": 0,
+                "offline": 0
+            }
+
+        zone_counts[zone_name]["total"] += 1
+
+        if (
+            state.get("connected")
+            and state.get("sync_status") is True
+        ):
+            zone_counts[zone_name]["sync"] += 1
+
+        if (
+            not state.get("connected")
+            or state.get("sync_status") == "OFFLINE"
+        ):
+            zone_counts[zone_name]["offline"] += 1
+
+    total_zones = len(zone_counts)
+
+    fully_synced_zones = sum(
+        1
+        for counts in zone_counts.values()
+        if counts["total"] > 0 and counts["sync"] == counts["total"]
+    )
+
+    total_junctions = sum(
+        counts["total"]
+        for counts in zone_counts.values()
+    )
+
+    offline_junctions = sum(
+        counts["offline"]
+        for counts in zone_counts.values()
+    )
+
+    online_junctions = total_junctions - offline_junctions
+
+    return {
+        "total_zones": total_zones,
+        "fully_synced_zones": fully_synced_zones,
+        "total_junctions": total_junctions,
+        "online_junctions": online_junctions,
+        "offline_junctions": offline_junctions
+    }
+
+
+def build_public_summary_from_status(status_data):
+    """
+    Build public dashboard summary using full /api/status data from main Pi.
+
+    Summary:
+    1. fully_synced_zones / total_zones
+    2. online_junctions / total_junctions
+    """
+
+    zone_counts = {}
+
+    all_junctions = status_data.get("data", {})
+
+    for ip, state in all_junctions.items():
+        zone_name = state.get("zone")
+
+        if zone_name not in PUBLIC_ALLOWED_ZONES:
+            continue
+
+        if zone_name not in zone_counts:
+            zone_counts[zone_name] = {
+                "total": 0,
+                "sync": 0,
+                "offline": 0
+            }
+
+        zone_counts[zone_name]["total"] += 1
+
+        if (
+            state.get("connected")
+            and state.get("sync_status") is True
+        ):
+            zone_counts[zone_name]["sync"] += 1
+
+        if (
+            not state.get("connected")
+            or state.get("sync_status") == "OFFLINE"
+        ):
+            zone_counts[zone_name]["offline"] += 1
+
+    total_zones = len(zone_counts)
+
+    fully_synced_zones = sum(
+        1
+        for counts in zone_counts.values()
+        if counts["total"] > 0 and counts["sync"] == counts["total"]
+    )
+
+    total_junctions = sum(
+        counts["total"]
+        for counts in zone_counts.values()
+    )
+
+    offline_junctions = sum(
+        counts["offline"]
+        for counts in zone_counts.values()
+    )
+
+    online_junctions = total_junctions - offline_junctions
+
+    return {
+        "total_zones": total_zones,
+        "fully_synced_zones": fully_synced_zones,
+        "total_junctions": total_junctions,
+        "online_junctions": online_junctions,
+        "offline_junctions": offline_junctions
+    }
+
+
+def filter_dashboard_status(data, status_data=None):
     allowed_zones = PUBLIC_ALLOWED_ZONES
 
     filtered_zones = [
@@ -98,24 +236,28 @@ def filter_dashboard_status(data):
         if item.get("zone") in allowed_zones
     ]
 
-    visible_total_junctions = sum(
-        item.get("total", 0)
-        for item in filtered_zones + filtered_pending_zones
-    )
-
-    visible_offline_junctions = sum(
-        item.get("offline", 0)
-        for item in filtered_zones + filtered_pending_zones
-    )
-
     data["zones"] = filtered_zones
     data["pending_zones"] = filtered_pending_zones
-    data["total_junctions"] = visible_total_junctions
-    data["offline_junctions"] = visible_offline_junctions
+
+    if isinstance(status_data, dict):
+        summary = build_public_summary_from_status(status_data)
+
+        data["total_zones"] = summary["total_zones"]
+        data["fully_synced_zones"] = summary["fully_synced_zones"]
+        data["total_junctions"] = summary["total_junctions"]
+        data["online_junctions"] = summary["online_junctions"]
+        data["offline_junctions"] = summary["offline_junctions"]
+
+    else:
+        data["total_zones"] = 0
+        data["fully_synced_zones"] = 0
+        data["total_junctions"] = 0
+        data["online_junctions"] = 0
+        data["offline_junctions"] = 0
 
     data["all_offline"] = (
-        visible_total_junctions > 0
-        and visible_offline_junctions == visible_total_junctions
+        data["total_junctions"] > 0
+        and data["offline_junctions"] == data["total_junctions"]
     )
 
     return data
@@ -255,8 +397,13 @@ def public_api_dashboard_status():
     if status != 200:
         return jsonify(data), status
 
+    status_data, status_data_code = fetch_from_main_pi("/api/status")
+
     if isinstance(data, dict):
-        data = filter_dashboard_status(data)
+        if status_data_code == 200 and isinstance(status_data, dict):
+            data = filter_dashboard_status(data, status_data)
+        else:
+            data = filter_dashboard_status(data)
 
     with cache_lock:
         dashboard_cache["time"] = now

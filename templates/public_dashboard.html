@@ -59,6 +59,45 @@ body {
     padding: 15px;
 }
 
+.summary-cards {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-bottom: 15px;
+}
+
+@media (min-width: 768px) {
+    .summary-cards {
+        grid-template-columns: repeat(2, minmax(220px, 280px));
+    }
+}
+
+.summary-card {
+    background: white;
+    padding: 16px 18px;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    border-left: 8px solid #4caf50;
+}
+
+.summary-card.junction {
+    border-left-color: #2196f3;
+}
+
+.summary-title {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 6px;
+    font-weight: bold;
+}
+
+.summary-value {
+    font-size: 26px;
+    font-family: monospace;
+    font-weight: bold;
+    color: #000;
+}
+
 .summary-grid {
     display: grid;
     grid-template-columns: 1fr;
@@ -208,6 +247,7 @@ body.dark-mode .container {
 }
 
 body.dark-mode .zone-card,
+body.dark-mode .summary-card,
 body.dark-mode .all-good,
 body.dark-mode .all-offline,
 body.dark-mode .error-box,
@@ -219,6 +259,14 @@ body.dark-mode .empty {
 
 body.dark-mode .zone-name,
 body.dark-mode .zone-count {
+    color: #ffffff;
+}
+
+body.dark-mode .summary-title {
+    color: #aaa;
+}
+
+body.dark-mode .summary-value {
     color: #ffffff;
 }
 
@@ -351,6 +399,18 @@ body.dark-mode .nav-btn:hover {
 
 <div class="container">
 
+    <div class="summary-cards">
+        <div class="summary-card">
+            <div class="summary-title">Fully Synced Zones</div>
+            <div class="summary-value" id="zoneSummary">-/-</div>
+        </div>
+
+        <div class="summary-card junction">
+            <div class="summary-title">Online Junctions</div>
+            <div class="summary-value" id="junctionSummary">-/-</div>
+        </div>
+    </div>
+
     <div style="margin-bottom:15px;">
         <button id="pendingToggle" class="nav-btn" onclick="togglePending()">
             Show pending desync
@@ -380,6 +440,22 @@ function formatDuration(seconds) {
     const s = seconds % 60;
 
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+function updateSummaryCards(result) {
+    const zoneSummary = document.getElementById("zoneSummary");
+    const junctionSummary = document.getElementById("junctionSummary");
+
+    if (!zoneSummary || !junctionSummary) return;
+
+    const fullySyncedZones = result.fully_synced_zones ?? 0;
+    const totalZones = result.total_zones ?? 0;
+
+    const onlineJunctions = result.online_junctions ?? 0;
+    const totalJunctions = result.total_junctions ?? 0;
+
+    zoneSummary.textContent = `${fullySyncedZones}/${totalZones}`;
+    junctionSummary.textContent = `${onlineJunctions}/${totalJunctions}`;
 }
 
 function togglePending() {
@@ -462,6 +538,8 @@ async function renderDashboard() {
 
         const res = await fetch("/api/dashboard_status");
         const result = await res.json();
+        
+        updateSummaryCards(result);
 
         if (!res.ok || result.error) {
             grid.innerHTML = `
