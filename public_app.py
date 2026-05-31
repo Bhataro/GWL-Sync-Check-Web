@@ -6,9 +6,6 @@ import threading
 
 app = Flask(__name__)
 
-# First Raspberry Pi backend.
-# Set this using environment variable:
-# export GWL_MAIN_PI_URL="http://FIRST_PI_IP:5000"
 MAIN_PI_URL = os.environ.get("GWL_MAIN_PI_URL")
 
 REQUEST_TIMEOUT = 3
@@ -42,11 +39,6 @@ VISITOR_ACTIVE_WINDOW = 15.0  # seconds
 visitor_sessions = {}
 visitor_lock = threading.Lock()
 
-# -----------------------------
-# Public Zone Visibility
-# -----------------------------
-# Only zones listed here will be visible on the public UI.
-# Use exact zone names from the first Pi.
 def load_public_allowed_zones():
     raw = os.environ.get("PUBLIC_ALLOWED_ZONES", "")
 
@@ -381,7 +373,7 @@ def public_api_status():
     # IMPORTANT:
     # Do not forward "since" for public cache.
     # The cache must store full zone data, not partial updates.
-    #print("CACHE MISS:", zone)
+    # print("CACHE MISS:", zone)
     data, status = fetch_from_main_pi(
         "/api/status",
         params={
@@ -390,7 +382,7 @@ def public_api_status():
     )
 
     # Cache successful response only.
-    # If main Pi has error, return error but do not overwrite good cache.
+    # If main has error, return error but do not overwrite good cache.
     if status == 200:
         with cache_lock:
             status_cache[cache_key] = {

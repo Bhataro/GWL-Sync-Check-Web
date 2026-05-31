@@ -87,8 +87,6 @@ table {
     min-width: 780px;
     background: white;
     border: 1px solid #ccc;
-
-    /* Updated dynamically by JavaScript */
     --name-col-width: 120px;
 }
 
@@ -573,13 +571,7 @@ function updateNameColumnWidth() {
         return name.length > longest.length ? name : longest;
     }, "");
 
-    /*
-       Estimate width:
-       - average character width around 8px
-       - add padding buffer
-       - minimum 75px
-       - maximum 160px to avoid name column becoming too wide
-    */
+    
     const estimatedWidth = longestName.length * 8 + 24;
     const finalWidth = Math.max(75, Math.min(estimatedWidth, 160));
 
