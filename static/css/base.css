@@ -1,0 +1,527 @@
+/* =========================================================
+   GWL SHARED DESIGN SYSTEM
+   File: static/css/base.css
+   Purpose:
+   - Shared layout
+   - Shared buttons
+   - Shared cards
+   - Shared tables
+   - Shared dark mode
+   - Shared status colors
+========================================================= */
+
+/* -----------------------------
+   RESET / BASE
+----------------------------- */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: #f2f3f5;
+    color: #111;
+    margin: 0;
+}
+
+a {
+    color: inherit;
+}
+
+.page-container {
+    padding: 15px;
+}
+
+.container {
+    max-width: 900px;
+    margin: 20px auto;
+    padding: 0 15px;
+}
+
+/* -----------------------------
+   TOP BAR / HEADER
+----------------------------- */
+.top-bar {
+    background: white;
+    padding: 15px 20px;
+    border-bottom: 1px solid #ddd;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.top-bar h1,
+.top-bar h2,
+.top-bar h3 {
+    margin: 0;
+    line-height: 1.2;
+}
+
+.header-actions,
+.nav-group {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* -----------------------------
+   BUTTONS / LINKS
+----------------------------- */
+.nav-btn,
+.config-link {
+    text-decoration: none;
+    font-size: 14px;
+    background: #333;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    display: inline-block;
+    border: none;
+    cursor: pointer;
+}
+
+.nav-btn:hover,
+.config-link:hover {
+    background: #555;
+}
+
+button {
+    padding: 12px 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 15px;
+}
+
+.primary-btn,
+button.primary-btn {
+    background: #4CAF50;
+    color: white;
+    font-weight: bold;
+}
+
+.primary-btn:hover,
+button.primary-btn:hover {
+    background: #45a049;
+}
+
+.danger-btn,
+button.danger-btn {
+    background: #d9534f;
+    color: white;
+    font-weight: bold;
+}
+
+.danger-btn:hover,
+button.danger-btn:hover {
+    background: #c9302c;
+}
+
+.warning-btn,
+button.warning-btn {
+    background: #ff9800;
+    color: black;
+    font-weight: bold;
+}
+
+button:disabled {
+    background: #999;
+    cursor: not-allowed;
+}
+
+button:active {
+    transform: scale(0.98);
+}
+
+/* -----------------------------
+   CARD
+----------------------------- */
+.card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
+}
+
+.card.compact {
+    padding: 12px;
+    margin-bottom: 12px;
+}
+
+/* -----------------------------
+   FORMS
+----------------------------- */
+label {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 6px;
+}
+
+input,
+select,
+textarea {
+    width: 100%;
+    padding: 12px;
+    font-size: 15px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    margin-bottom: 12px;
+    background: white;
+    color: #111;
+}
+
+.form-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.form-row input,
+.form-row select {
+    flex: 1;
+}
+
+.grid {
+    display: grid;
+    gap: 10px;
+}
+
+/* -----------------------------
+   TABLES
+----------------------------- */
+.table-wrap {
+    margin: 15px;
+    overflow-x: auto;
+    background: white;
+    border-radius: 12px;
+    padding: 10px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+}
+
+th,
+td {
+    padding: 8px;
+    border: 1px solid #ccc;
+    text-align: center;
+}
+
+th {
+    background: #f0f0f0;
+    font-weight: bold;
+}
+
+tr:nth-child(even) {
+    background: #fafafa;
+}
+
+tr:hover {
+    background: #f1f7ff;
+}
+
+th:first-child,
+td:first-child {
+    text-align: left;
+}
+
+/* -----------------------------
+   STATUS PILLS / CELLS
+----------------------------- */
+.status-sync,
+.status-not,
+.status-not-sync,
+.status-offline,
+.status-ind,
+.status-pamb {
+    font-weight: bold;
+}
+
+.status-sync {
+    background: #4CAF50;
+    color: white;
+}
+
+.status-not,
+.status-not-sync {
+    background: #f44336;
+    color: white;
+}
+
+.status-offline {
+    background: #999;
+    color: white;
+}
+
+.status-ind {
+    background: #D3D3D3;
+    color: black;
+}
+
+.status-pamb {
+    background: #fff3cd;
+    color: #7a5a00;
+}
+
+/* -----------------------------
+   SIGNAL STATE BOXES
+----------------------------- */
+.state-box {
+    display: inline-block;
+    min-width: 55px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-weight: bold;
+    color: white;
+    font-family: monospace;
+}
+
+.state-green {
+    background: #4CAF50;
+}
+
+.state-flash {
+    background: #8BC34A;
+    color: black;
+}
+
+.state-amber {
+    background: #FF9800;
+    color: black;
+}
+
+.state-red {
+    background: #f44336;
+}
+
+.state-unknown {
+    background: #ddd;
+    color: #555;
+}
+
+.state-pamb {
+    background: #d6a800;
+    color: black;
+    animation: pambSlowFlash 1.5s infinite;
+}
+
+@keyframes pambSlowFlash {
+    0% {
+        background: #6f5a00;
+    }
+    50% {
+        background: #ffd54f;
+    }
+    100% {
+        background: #6f5a00;
+    }
+}
+
+/* -----------------------------
+   DARK MODE TOGGLE SWITCH
+----------------------------- */
+.theme-switch {
+    position: relative;
+    display: inline-block;
+    width: 58px;
+    height: 32px;
+    flex: 0 0 auto;
+}
+
+.theme-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.theme-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: #d9d9de;
+    border: 2px solid #c3c3c8;
+    border-radius: 999px;
+    transition: 0.25s;
+}
+
+.theme-slider:before {
+    content: "";
+    position: absolute;
+    height: 26px;
+    width: 26px;
+    left: 1px;
+    top: 1px;
+    background: #f5f5f5;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    transition: 0.25s;
+}
+
+.theme-switch input:checked + .theme-slider {
+    background: #4a4a4a;
+    border-color: #666;
+}
+
+.theme-switch input:checked + .theme-slider:before {
+    transform: translateX(26px);
+}
+
+/* -----------------------------
+   DARK MODE
+----------------------------- */
+body.dark-mode {
+    background: #121212;
+    color: #eaeaea;
+}
+
+body.dark-mode .top-bar,
+body.dark-mode .card,
+body.dark-mode .controls,
+body.dark-mode .table-wrap,
+body.dark-mode .all-good,
+body.dark-mode .all-offline,
+body.dark-mode .empty,
+body.dark-mode .error-box {
+    background: #1e1e1e;
+    color: #eaeaea;
+}
+
+body.dark-mode .top-bar {
+    border-bottom-color: #333;
+}
+
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode .zone-name,
+body.dark-mode .zone-count,
+body.dark-mode .summary-value {
+    color: #ffffff;
+}
+
+body.dark-mode .nav-btn,
+body.dark-mode .config-link {
+    background: #444;
+    color: #ffffff;
+}
+
+body.dark-mode .nav-btn:hover,
+body.dark-mode .config-link:hover {
+    background: #666;
+}
+
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea {
+    background: #2a2a2a;
+    color: #ffffff;
+    border-color: #555;
+}
+
+body.dark-mode table {
+    background: #1e1e1e;
+    color: #eaeaea;
+}
+
+body.dark-mode th {
+    background: #2a2a2a;
+    color: #ffffff;
+}
+
+body.dark-mode td {
+    border-color: #444;
+}
+
+body.dark-mode tr:nth-child(even) {
+    background: #242424;
+}
+
+body.dark-mode tr:hover {
+    background: #303845;
+}
+
+/* -----------------------------
+   MOBILE
+----------------------------- */
+@media (max-width: 767px) {
+    body {
+        font-size: 14px;
+    }
+
+    .top-bar {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 12px;
+        gap: 10px;
+    }
+
+    .top-bar h1,
+    .top-bar h2,
+    .top-bar h3 {
+        font-size: 20px;
+    }
+
+    .header-actions,
+    .nav-group {
+        width: 100%;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .nav-btn,
+    .config-link {
+        flex: 1;
+        text-align: center;
+        padding: 10px;
+        font-size: 14px;
+    }
+
+    .container {
+        margin: 12px auto;
+        padding: 0 12px;
+    }
+
+    .page-container {
+        padding: 12px;
+    }
+
+    .card {
+        padding: 15px;
+        border-radius: 10px;
+    }
+
+    button {
+        width: 100%;
+        padding: 12px;
+    }
+
+    .table-wrap {
+        margin: 8px;
+        padding: 0;
+        border-radius: 8px;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    th,
+    td {
+        padding: 7px 6px;
+        font-size: 14px;
+        white-space: nowrap;
+    }
+
+    .state-box {
+        min-width: 45px;
+        padding: 4px 7px;
+        font-size: 14px;
+    }
+}
