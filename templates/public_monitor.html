@@ -248,11 +248,24 @@ tr:hover {
         width: 100%;
     }
 
-    .nav-btn {
+    .header-actions {
         width: 100%;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .nav-btn {
+        flex: 1;
         text-align: center;
         padding: 10px;
         font-size: 14px;
+    }
+
+    .theme-switch {
+        width: 58px;
+        height: 32px;
     }
 
     .controls {
@@ -345,6 +358,142 @@ tr:hover {
     }
 }
 
+/* -----------------------------
+   DARK MODE TOGGLE SWITCH
+----------------------------- */
+.header-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.theme-switch {
+    position: relative;
+    display: inline-block;
+    width: 58px;
+    height: 32px;
+    flex: 0 0 auto;
+}
+
+.theme-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.theme-slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: #d9d9de;
+    border: 2px solid #c3c3c8;
+    border-radius: 999px;
+    transition: 0.25s;
+}
+
+.theme-slider:before {
+    content: "";
+    position: absolute;
+    height: 26px;
+    width: 26px;
+    left: 1px;
+    top: 1px;
+    background: #f5f5f5;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    transition: 0.25s;
+}
+
+.theme-switch input:checked + .theme-slider {
+    background: #4a4a4a;
+    border-color: #666;
+}
+
+.theme-switch input:checked + .theme-slider:before {
+    transform: translateX(26px);
+}
+
+/* -----------------------------
+   DARK MODE
+----------------------------- */
+body.dark-mode {
+    background: #121212;
+    color: #eaeaea;
+}
+
+body.dark-mode .top-bar,
+body.dark-mode .controls,
+body.dark-mode .table-wrap,
+body.dark-mode .error-box {
+    background: #1e1e1e;
+    color: #eaeaea;
+}
+
+body.dark-mode .top-bar {
+    border-bottom-color: #333;
+}
+
+body.dark-mode .top-bar h2 {
+    color: #ffffff;
+}
+
+body.dark-mode .public-badge {
+    background: #243b28;
+    color: #9be7a3;
+}
+
+body.dark-mode .nav-btn {
+    background: #444;
+    color: #ffffff;
+}
+
+body.dark-mode .nav-btn:hover {
+    background: #666;
+}
+
+body.dark-mode select {
+    background: #2a2a2a;
+    color: #ffffff;
+    border-color: #555;
+}
+
+body.dark-mode table {
+    background: #1e1e1e;
+    color: #eaeaea;
+    border-color: #444;
+}
+
+body.dark-mode th {
+    background: #2a2a2a;
+    color: #ffffff;
+}
+
+body.dark-mode td {
+    border-color: #444;
+}
+
+body.dark-mode tr:nth-child(even) {
+    background: #242424;
+}
+
+body.dark-mode tr:hover {
+    background: #303845;
+}
+
+body.dark-mode th:first-child,
+body.dark-mode td:first-child {
+    background: #1e1e1e;
+}
+
+body.dark-mode th:first-child {
+    background: #2a2a2a;
+}
+
+body.dark-mode .footer-note {
+    color: #aaa;
+}
+
 </style>
 </head>
 
@@ -358,7 +507,12 @@ tr:hover {
         </div>
     </div>
 
-    <div>
+    <div class="header-actions">
+        <label class="theme-switch" title="Toggle dark mode">
+            <input type="checkbox" id="darkModeToggle" onchange="toggleDarkMode()">
+            <span class="theme-slider"></span>
+        </label>
+
         <a href="/" class="nav-btn">Zone Overview</a>
     </div>
 </div>
@@ -710,6 +864,28 @@ async function init() {
 setInterval(loadData, 1000);
 setInterval(renderTable, 1000);
 setInterval(loadVisitorCount, 5000);
+
+function applyDarkModeSetting() {
+    const enabled = localStorage.getItem("publicDarkMode") === "true";
+
+    document.body.classList.toggle("dark-mode", enabled);
+
+    const toggle = document.getElementById("darkModeToggle");
+    if (toggle) {
+        toggle.checked = enabled;
+    }
+}
+
+function toggleDarkMode() {
+    const toggle = document.getElementById("darkModeToggle");
+    const enabled = toggle ? toggle.checked : false;
+
+    localStorage.setItem("publicDarkMode", enabled ? "true" : "false");
+
+    applyDarkModeSetting();
+}
+
+applyDarkModeSetting();
 
 init();
 loadVisitorCount();

@@ -61,6 +61,96 @@ body {
     padding: 15px;
 }
 
+.summary-cards {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+@media (min-width: 768px) {
+    .summary-cards {
+        grid-template-columns: repeat(2, minmax(150px, 170px));
+    }
+}
+
+.summary-card {
+    position: relative;
+    background: white;
+    padding: 8px 10px;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    border-left: 5px solid #4caf50;
+    min-height: 58px;
+}
+
+.summary-card.junction {
+    border-left-color: #2196f3;
+}
+
+.summary-title {
+    font-size: 10px;
+    color: #666;
+    margin-bottom: 3px;
+    font-weight: bold;
+}
+
+.summary-value {
+    font-size: 17px;
+    font-family: monospace;
+    font-weight: bold;
+    color: #000;
+}
+
+.summary-tooltip {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 50;
+    width: 230px;
+    max-height: 220px;
+    overflow-y: auto;
+    background: white;
+    color: #333;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+    padding: 8px;
+    margin-top: 6px;
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+.summary-card:hover .summary-tooltip {
+    display: block;
+}
+
+.tooltip-title {
+    font-weight: bold;
+    margin-bottom: 5px;
+    font-size: 11px;
+}
+
+.tooltip-empty {
+    color: #4caf50;
+    font-style: italic;
+}
+
+.tooltip-item {
+    border-bottom: 1px solid #eee;
+    padding: 4px 0;
+}
+
+.tooltip-item:last-child {
+    border-bottom: none;
+}
+
+.tooltip-sub {
+    color: #777;
+    font-size: 10px;
+}
+
 .summary-grid {
     display: grid;
     grid-template-columns: 1fr;
@@ -189,6 +279,83 @@ body {
 }
 
 /* -----------------------------
+   DARK MODE
+----------------------------- */
+body.dark-mode {
+    background: #121212;
+    color: #eaeaea;
+}
+
+body.dark-mode .top-bar {
+    background: #1e1e1e;
+    border-bottom-color: #333;
+}
+
+body.dark-mode .top-bar h2 {
+    color: #ffffff;
+}
+
+body.dark-mode .container {
+    background: #121212;
+}
+
+body.dark-mode .zone-card,
+body.dark-mode .summary-card,
+body.dark-mode .all-good,
+body.dark-mode .all-offline,
+body.dark-mode .error-box,
+body.dark-mode .empty {
+    background: #1e1e1e;
+    color: #eaeaea;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+
+body.dark-mode .zone-name,
+body.dark-mode .zone-count {
+    color: #ffffff;
+}
+
+body.dark-mode .summary-title {
+    color: #aaa;
+}
+
+body.dark-mode .summary-value {
+    color: #ffffff;
+}
+
+body.dark-mode .summary-tooltip {
+    background: #1e1e1e;
+    color: #eaeaea;
+    border-color: #444;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+}
+
+body.dark-mode .tooltip-item {
+    border-bottom-color: #333;
+}
+
+body.dark-mode .tooltip-sub {
+    color: #aaa;
+}
+
+body.dark-mode .zone-card:hover {
+    background: #252525;
+}
+
+body.dark-mode .footer-note {
+    color: #aaa;
+}
+
+body.dark-mode .nav-btn {
+    background: #444;
+    color: #ffffff;
+}
+
+body.dark-mode .nav-btn:hover {
+    background: #666;
+}
+
+/* -----------------------------
    PHONE FRIENDLY DASHBOARD
 ----------------------------- */
 @media (max-width: 767px) {
@@ -300,6 +467,28 @@ body {
 
 <div class="container">
 
+    <div class="summary-cards">
+        <div class="summary-card">
+            <div class="summary-title">Fully Synced Zones</div>
+            <div class="summary-value" id="zoneSummary">-/-</div>
+
+            <div class="summary-tooltip">
+                <div class="tooltip-title">Desync Zones</div>
+                <div id="desyncZoneList" class="tooltip-empty">No desync zone</div>
+            </div>
+        </div>
+
+        <div class="summary-card junction">
+            <div class="summary-title">Online Junctions</div>
+            <div class="summary-value" id="junctionSummary">-/-</div>
+
+            <div class="summary-tooltip">
+                <div class="tooltip-title">Offline Junctions</div>
+                <div id="offlineJunctionList" class="tooltip-empty">No offline junction</div>
+            </div>
+        </div>
+    </div>
+
     <div style="margin-bottom:15px;">
         <button id="pendingToggle" class="nav-btn" onclick="togglePending()">
             Show pending desync
@@ -329,6 +518,61 @@ function formatDuration(seconds) {
     const s = seconds % 60;
 
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+function updateSummaryCards(result) {
+    const zoneSummary = document.getElementById("zoneSummary");
+    const junctionSummary = document.getElementById("junctionSummary");
+    const desyncZoneList = document.getElementById("desyncZoneList");
+    const offlineJunctionList = document.getElementById("offlineJunctionList");
+
+    if (!zoneSummary || !junctionSummary) return;
+
+    const fullySyncedZones = result.fully_synced_zones ?? 0;
+    const totalZones = result.total_zones ?? 0;
+
+    const onlineJunctions = result.online_junctions ?? 0;
+    const totalJunctions = result.total_junctions ?? 0;
+
+    zoneSummary.textContent = `${fullySyncedZones}/${totalZones}`;
+    junctionSummary.textContent = `${onlineJunctions}/${totalJunctions}`;
+
+    const desyncZones = result.desync_zones || [];
+    const offlineJunctions = result.offline_junctions_list || [];
+
+    if (desyncZoneList) {
+        if (desyncZones.length === 0) {
+            desyncZoneList.className = "tooltip-empty";
+            desyncZoneList.innerHTML = "No desync zone";
+        } else {
+            desyncZoneList.className = "";
+            desyncZoneList.innerHTML = desyncZones.map(item => `
+                <div class="tooltip-item">
+                    <strong>${item.zone}</strong>
+                    <div class="tooltip-sub">
+                        Sync: ${item.sync}/${item.total} | Offline: ${item.offline}
+                    </div>
+                </div>
+            `).join("");
+        }
+    }
+
+    if (offlineJunctionList) {
+        if (offlineJunctions.length === 0) {
+            offlineJunctionList.className = "tooltip-empty";
+            offlineJunctionList.innerHTML = "No offline junction";
+        } else {
+            offlineJunctionList.className = "";
+            offlineJunctionList.innerHTML = offlineJunctions.map(item => `
+                <div class="tooltip-item">
+                    <strong>${item.name}</strong>
+                    <div class="tooltip-sub">
+                        ${item.zone}
+                    </div>
+                </div>
+            `).join("");
+        }
+    }
 }
 
 function togglePending() {
@@ -411,6 +655,8 @@ async function renderDashboard() {
 
         const res = await fetch("/api/dashboard_status");
         const result = await res.json();
+        
+        updateSummaryCards(result);
 
         if (!res.ok || result.error) {
             grid.innerHTML = `
@@ -519,6 +765,14 @@ async function init() {
 }
 
 setInterval(renderDashboard, 5000);
+
+function applyDarkModeSetting() {
+    const enabled = localStorage.getItem("publicDarkMode") === "true";
+
+    document.body.classList.toggle("dark-mode", enabled);
+}
+
+applyDarkModeSetting();
 
 init();
 </script>
