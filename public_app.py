@@ -47,39 +47,18 @@ visitor_lock = threading.Lock()
 # -----------------------------
 # Only zones listed here will be visible on the public UI.
 # Use exact zone names from the first Pi.
-PUBLIC_ALLOWED_ZONES = {
-    "Kulim Hi Tech",
-    "Kulim",
-    "Muar",
-    "Kuala Selangor",
-    "Kuala Langat",
-    "MBSJ",
-    "Port Dickson",
-    "Bentong",
-    "Kota Laksamana",
-    "Ayer Keroh",
-    "Pekan",
-    "Gombak",
-    "Kluang",
-    "Perak1_Aeon",
-    "Perak2_tolpulai",
-    "Perak3_rokam",
-    "Kelantan1_STL2024",
-    "Kelantan1_STL2025",
-    "Kelantan1_STL2025_2",
-    "JKR Terengganu",
-    "MBIP Pontian Link",
-    "Kota Tinggi",
-    "MBKT",
-    "Bukit Beruang",
-    "NTC Kulim",
-    "Ayer Keroh Gong",
-    "AMJ1",
-    "AMJ2 Melaka Sentral",
-    "Balai Polis Bandar Hilir",
-    "Lebuh SPA"
+def load_public_allowed_zones():
+    raw = os.environ.get("PUBLIC_ALLOWED_ZONES", "")
 
-}
+    zones = {
+        zone.strip()
+        for zone in raw.split(",")
+        if zone.strip()
+    }
+
+    return zones
+
+PUBLIC_ALLOWED_ZONES = load_public_allowed_zones()
 
 def is_zone_public(zone_name):
     return zone_name in PUBLIC_ALLOWED_ZONES

@@ -1,2 +1,15 @@
 #etc
 *.txt
+/etc
+.env
+zones.json
+schedules.json
+routes.json
+scheduler_sent_events.json
+logs/
+*.log
+*_sync.csv
+__pycache__/
+*.pyc
+/.tmp.driveupload
+/.tmp.drivedownload
