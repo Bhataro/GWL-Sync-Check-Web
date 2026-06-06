@@ -342,6 +342,28 @@ def public_api_dashboard_status():
 
     return jsonify(data), status
 
+@app.route("/api/get_display_schedule")
+def public_api_get_display_schedule():
+    zone = request.args.get("zone")
+
+    if not zone:
+        return jsonify({
+            "error": "Zone is required."
+        }), 400
+
+    if not is_zone_public(zone):
+        return jsonify({
+            "error": "This zone is not available for public viewing."
+        }), 403
+
+    data, status = fetch_from_main_pi(
+        "/api/get_display_schedule",
+        params={
+            "zone": zone
+        }
+    )
+
+    return jsonify(data), status
 
 @app.route("/api/status")
 def public_api_status():

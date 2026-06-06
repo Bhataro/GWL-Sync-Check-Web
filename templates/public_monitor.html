@@ -66,6 +66,95 @@ body {
     gap: 12px;
 }
 
+.zone-select-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+    width: 100%;
+}
+
+.zone-select-row select {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+}
+
+.schedule-tooltip-wrap {
+    position: relative;
+    display: inline-block;
+    flex: 0 0 auto;
+}
+
+.schedule-help-btn {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: #333;
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.schedule-help-btn:hover {
+    background: #555;
+}
+
+.schedule-tooltip {
+    display: none;
+    position: absolute;
+    top: 115%;
+    right: 0;
+    z-index: 50;
+    min-width: 230px;
+    max-width: 300px;
+    background: white;
+    color: #333;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+    padding: 10px;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.schedule-tooltip-wrap:hover .schedule-tooltip {
+    display: block;
+}
+
+.schedule-tooltip-title {
+    font-weight: bold;
+    margin-bottom: 6px;
+}
+
+.schedule-tooltip-row {
+    border-bottom: 1px solid #eee;
+    padding: 5px 0;
+}
+
+.schedule-tooltip-row:last-child {
+    border-bottom: none;
+}
+
+.schedule-tooltip-disabled {
+    color: #999;
+    font-style: italic;
+}
+
+body.dark-mode .schedule-tooltip {
+    background: #1e1e1e;
+    color: #eaeaea;
+    border-color: #444;
+}
+
+body.dark-mode .schedule-tooltip-row {
+    border-bottom-color: #333;
+}
+
 select {
     padding: 10px;
     font-size: 15px;
@@ -517,7 +606,21 @@ body.dark-mode .footer-note {
 
 <div class="controls">
     <label><strong>Select Zone:</strong></label>
-    <select id="zoneSelect" onchange="zoneChanged()"></select>
+
+    <div class="zone-select-row">
+        <select id="zoneSelect" onchange="zoneChanged()"></select>
+
+        <div class="schedule-tooltip-wrap">
+            <button type="button" class="schedule-help-btn" onmouseenter="loadScheduleTooltip()">
+                🕒
+            </button>
+
+            <div class="schedule-tooltip" id="scheduleTooltip">
+                <div class="schedule-tooltip-title">GWL Schedule</div>
+                <div id="scheduleTooltipContent">Hover to load schedule...</div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <div id="errorBox"></div>
@@ -785,7 +888,66 @@ function zoneChanged() {
 
     document.getElementById("tableBody").innerHTML = "";
 
+    const scheduleContent = document.getElementById("scheduleTooltipContent");
+    if (scheduleContent) {
+        scheduleContent.innerHTML = "Hover to load schedule...";
+    }
+
     loadData();
+}
+
+async function loadScheduleTooltip() {
+    const content = document.getElementById("scheduleTooltipContent");
+
+    if (!content) return;
+
+    if (!currentZone) {
+        content.innerHTML = `<div class="schedule-tooltip-disabled">No zone selected</div>`;
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            `/api/get_display_schedule?zone=${encodeURIComponent(currentZone)}`
+        );
+
+        const windows = await response.json();
+
+        if (!response.ok || windows.error) {
+            content.innerHTML = `
+                <div class="schedule-tooltip-disabled">
+                    ${windows.error || "Unable to load schedule"}
+                </div>
+            `;
+            return;
+        }
+
+        if (!Array.isArray(windows) || windows.length === 0) {
+            content.innerHTML = `
+                <div class="schedule-tooltip-disabled">
+                    No schedule set for this zone
+                </div>
+            `;
+            return;
+        }
+
+        content.innerHTML = windows.map((w, index) => {
+            return `
+                <div class="schedule-tooltip-row">
+                    <strong>Timeslot ${index + 1}</strong><br>
+                    Start: ${w.start || "-"}<br>
+                    Stop: ${w.stop || "-"}
+                </div>
+            `;
+        }).join("");
+
+    } catch (error) {
+        content.innerHTML = `
+            <div class="schedule-tooltip-disabled">
+                Public UI cannot reach schedule API
+            </div>
+        `;
+    }
 }
 
 function renderTable() {
