@@ -422,5 +422,55 @@ def public_api_visitor_count():
         "active_window_seconds": VISITOR_ACTIVE_WINDOW
     })
 
+@app.route("/public_map")
+def public_map():
+    return render_template("public_map_view.html")
+
+
+@app.route("/api/corridor")
+def public_api_corridor():
+    zone = request.args.get("zone")
+
+    if not zone:
+        return jsonify({
+            "error": "Zone is required."
+        }), 400
+
+    if not is_zone_public(zone):
+        return jsonify({
+            "error": "This zone is not available for public viewing."
+        }), 403
+
+    data, status = fetch_from_main_pi(
+        "/api/corridor",
+        params={
+            "zone": zone
+        }
+    )
+
+    return jsonify(data), status
+
+
+@app.route("/api/routes")
+def public_api_routes():
+    zone = request.args.get("zone")
+
+    if not zone:
+        return jsonify({}), 200
+
+    if not is_zone_public(zone):
+        return jsonify({
+            "error": "This zone is not available for public viewing."
+        }), 403
+
+    data, status = fetch_from_main_pi(
+        "/api/routes",
+        params={
+            "zone": zone
+        }
+    )
+
+    return jsonify(data), status
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001)

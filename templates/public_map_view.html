@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Green Wave Map</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-rotatedmarker/leaflet.rotatedMarker.js"></script>
+
+<style>
+body {
+    font-family: Arial;
+    margin: 0;
+    background: #f4f4f4;
+}
+
+#map {
+    height: 100vh;
+}
+
+.top-bar {
+    position: absolute;
+    top:10px;
+    left:80px;
+    z-index:1000;
+    background:white;
+    padding:10px;
+    border-radius:8px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="top-bar">
+    <select id="zoneSelect"></select>
+</div>
+
+<div id="map"></div>
+
+<script>
+
+let map = L.map('map').setView([1.5,103.7], 12);
+//L.marker([3.0567, 101.5919]).addTo(map);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution:'© OpenStreetMap'
+}).addTo(map);
+
+let markers = {};
+let polylines = [];
+let vehicleLayer = [];
+
+let currentZone = null;
+let allData = {};
+let lastTriggered = {};
+
+let hasFitted = false;
+
+let prevData = {};
+
+let lastUpdateTime = 0;
+
+let vehicles = [];
+let vehicleMarkers = [];
+let phaseArrowLayer = [];
+let SHOW_ROUTE = false;
+
+const TOOLTIP_ZOOM_THRESHOLD = 16;
+
+const PHASE_ARROWS = {
+    "KHTP4": {
+        1: [
+            {
+                from: [5.416296570061137, 100.58587447169504],
+                to:   [5.416784167418673, 100.58566986884928]
+            }
+        ],
+        2: [
+            {
+                from: [5.416910203541837, 100.58573114255272],
+                to:   [5.416279024658943, 100.58599000873043]
+            }
+        ],
+        3: [
+            {
+                from: [5.41663328114919, 100.58615603144791],
+                to:   [5.416389622445253, 100.58554717003678]
+            }
+        ],
+        4: [
+            {
+                from: [5.416464748763276, 100.58550113291763],
+                to:   [5.416717991611776, 100.58614306041689]
+            }
+        ]
+
+    }
+};
+
+
+// 🔥 DEFINE LINKING PHASE PER JUNCTION (TEMP)
+const LINK_PHASES = {
+    // use EXACT names from your system
+    "Kilang Kayu": 2,
+    "Pontian Link": 1,
+    "GP Prima": 1
+       
+};
+
+let ROUTES = {
+    "KHTP4->PBT": {
+        link_phase: 1,
+        path: [
+            [5.416217839544452, 100.58590894495401],
+            [5.416632448810612, 100.58573169268266],
+            [5.417046687751662, 100.58556133970332],
+            [5.417465014444001, 100.58539188833885],
+            [5.417880912426759, 100.58521890724825],
+            [5.41829746759729, 100.58505126918497],
+            [5.418715073904223, 100.58488095131544],
+            [5.418920681014527, 100.58479646173014]
+        ]
+    },
+
+    "PBT->Osram": {
+        link_phase: 2,
+        path: [
+            [5.418918020033591, 100.58479453392559],
+            [5.419750335370061, 100.58445408949439],
+            [5.420585439884571, 100.58411388004986],
+            [5.42141672336936, 100.5837705268111],
+            [5.422250336493116, 100.5834288242616],
+            [5.423914614490784, 100.58274672859325],
+            [5.424753092857626, 100.58240017289323],
+            [5.425303464160235, 100.58217579620843]
+        ]
+    }
+};
+
+let corridor = [
+    { from: "KHTP4", to: "PBT" },
+    { from: "PBT", to: "Osram" }
+];
+
+//offset temp
+const OFFSETS = {
+    "Pontian Link->GP Prima": 30,
+    "GP Prima->Kilang Kayu": 25
+};
+
+const icons = {
+    green: L.icon({
+        iconUrl: "/static/icons/green_p.png",
+        iconSize: [30, 30],
+        iconAnchor: [15, 30]
+    }),
+    amber: L.icon({
+        iconUrl: "/static/icons/amber_p.png",
+        iconSize: [30, 30],
+        iconAnchor: [15, 30]
+    }),
+    red: L.icon({
+        iconUrl: "/static/icons/red_p.png",
+        iconSize: [30, 30],
+        iconAnchor: [15, 30]
+    }),
+    flash: L.icon({
+        iconUrl: "/static/icons/flash_p.png",
+        iconSize: [30, 30],
+        iconAnchor: [15, 30]
+    })
+};
+
+const carIcon = L.icon({
+    iconUrl: "/static/icons/car_p.png",
+    iconSize: [30, 30],
+    iconAnchor: [15, 15]
+});
+
+//helper
+function getOffset(fromName, toName) {
+    return OFFSETS[`${fromName}->${toName}`];
+}
+
+function getIcon(lamp) {
+    if (lamp === 0) return icons.green;
+    if (lamp === 1) return icons.flash;
+    if (lamp === 2) return icons.amber;
+    if (lamp === 3) return icons.red;
+    return icons.red;
+}
+
+function updateTooltipVisibility() {
+    const zoom = map.getZoom();
+
+    Object.values(markers).forEach(m => {
+        if (!m) return;
+
+        if (zoom >= TOOLTIP_ZOOM_THRESHOLD) {
+            if (m.getTooltip()) {
+                m.openTooltip();
+            }
+        } else {
+            if (m.getTooltip()) {
+                m.closeTooltip();
+            }
+        }
+    });
+}
+
+map.on("zoomend", updateTooltipVisibility);
+
+async function loadZones() {
+    const res = await fetch('/api/zones');
+    const zones = await res.json();
+    const select = document.getElementById("zoneSelect");
+
+    select.innerHTML = "";
+
+    zones.forEach(z => {
+        let opt = document.createElement("option");
+        opt.value = z;
+        opt.text = z;
+        select.appendChild(opt);
+    });
+
+    if (zones.length > 0) {
+        const params = new URLSearchParams(window.location.search);
+        const requestedZone = params.get("zone");
+
+        if (requestedZone && zones.includes(requestedZone)) {
+            currentZone = requestedZone;
+        } else {
+            currentZone = zones[0];
+        }
+
+        select.value = currentZone;
+
+        const res3 = await fetch(`/api/routes?zone=${encodeURIComponent(currentZone)}`);
+        ROUTES = await res3.json();
+
+        await updateData();
+
+        const res2 = await fetch(`/api/corridor?zone=${encodeURIComponent(currentZone)}`);
+        corridor = await res2.json();
+
+        renderMap();
+    }
+}
+
+document.getElementById("zoneSelect").addEventListener("change", async e => {
+    currentZone = e.target.value;
+
+    window.history.replaceState(
+        null,
+        "",
+        `/public_map?zone=${encodeURIComponent(currentZone)}`
+    );
+
+    const res3 = await fetch(`/api/routes?zone=${encodeURIComponent(currentZone)}`);
+    ROUTES = await res3.json();
+
+    lastUpdateTime = 0;
+    allData = {}; 
+    resetMap();
+
+    vehicleMarkers.forEach(m => map.removeLayer(m));
+    vehicles = [];
+    vehicleMarkers = [];
+
+    await updateData();
+
+    const res2 = await fetch(`/api/corridor?zone=${encodeURIComponent(currentZone)}`);
+    corridor = await res2.json();
+
+    renderMap();
+});
+
+//load data and corridor
+async function updateData() {
+    if (!currentZone) return;
+
+    let url = `/api/status?zone=${currentZone}`;
+
+    if (lastUpdateTime) {
+        url += `&since=${lastUpdateTime}`;
+    }
+
+    const res1 = await fetch(url);
+    const result = await res1.json();
+
+    const newData = result.data || {};
+    lastUpdateTime = result.server_time || Date.now();
+
+    // 🔥 MERGE instead of replace
+    Object.entries(newData).forEach(([ip, j]) => {
+        allData[ip] = {
+            ...allData[ip],
+            ...j
+        };
+    });
+
+    const now = Date.now() / 1000;
+
+    Object.keys(allData).forEach(ip => {
+        const j = allData[ip];
+
+        // remove if not updated for 30s
+        if (!j.last_seen || (now - j.last_seen > 30)) {
+            j.connected = false;
+
+
+            // also remove marker if exists
+            if (markers[ip]) {
+                map.removeLayer(markers[ip]);
+                delete markers[ip];
+            }
+        }
+    });
+
+}
+
+function renderMap() {
+    drawMap();
+}
+
+//to get mode, sync state
+function getModeText(movement) {
+    if (!movement) return "-";
+    return movement;
+}
+
+function getSyncText(j) {
+    if (!j.connected) return "OFFLINE";
+
+    if (j.sync_status === "IND") return "IND";
+    if (j.sync_status === true) return "SYNC";
+    if (j.sync_status === false) return "NOT SYNC";
+
+    return "-";
+}
+
+function getSyncColor(j) {
+    if (!j.connected) return "#999";       // OFFLINE
+    if (j.sync_status === "IND") return "#D3D3D3";
+    if (j.sync_status === true) return "#4CAF50";
+    if (j.sync_status === false) return "#F44336";
+    return "#999";
+}
+
+function createMarker(ip, j) {
+
+    markers[ip] = L.marker([j.lat, j.lng], {
+        draggable: false,
+        icon: getIcon(j.lamp_state)
+    }).addTo(map);
+}
+
+function updateMarker(ip, j, prev) {
+
+    const marker = markers[ip];
+
+    // update position
+    if (j.lat !== prev.lat || j.lng !== prev.lng) {
+        marker.setLatLng([j.lat, j.lng]);
+    }
+
+    // update icon
+    if (j.lamp_state !== prev.lamp_state) {
+        marker.setIcon(getIcon(j.lamp_state));
+    }
+
+    // update tooltip ONLY when needed
+    if (
+        j.phase !== prev.phase ||
+        j.phase_sec !== prev.phase_sec ||
+        j.sync_status !== prev.sync_status ||
+        j.movement !== prev.movement ||
+        j.delta !== prev.delta
+    ) {
+        updateTooltip(marker, j);
+    }
+}
+
+function updateTooltip(marker, j) {
+
+    function getLampColor(lamp) {
+        if (lamp === 0) return "#4CAF50";
+        if (lamp === 1) return "#8BC34A";
+        if (lamp === 2) return "#FFC107";
+        if (lamp === 3) return "#F44336";
+        return "#999";
+    }
+
+    const color = getLampColor(j.lamp_state);
+    const syncColor = getSyncColor(j);
+    const syncText = getSyncText(j);
+    const modeText = getModeText(j.movement);
+    const delta = j.delta != null ? `Δ${j.delta}s` : "-";
+
+    const content = `
+    <div style="
+        margin-bottom:4px;
+        background:white;
+        padding:6px 8px;
+        border-radius:6px;
+        border-left:4px solid ${color};
+        box-shadow:0 1px 4px rgba(0,0,0,0.2);
+        font-size:12px;
+        text-align:center;
+    ">
+        <b>${j.name || ip}</b><br>
+        P${j.phase ?? "-"} | ${j.phase_sec ?? "-"}s<br>
+        <span style="font-size:11px;color:#555">
+            ${modeText} | 
+            <span style="color:${syncColor};font-weight:bold">
+                ${syncText}
+            </span><br>
+            ${delta}
+        </span>
+    </div>
+    `;
+
+    if (!marker.getTooltip()) {
+        marker.bindTooltip(content, {
+            permanent: false,
+            direction: "top",
+            offset: [0, -35]
+        });
+    } else {
+        marker.setTooltipContent(content);
+    }
+}
+
+function hasChanged(prev, curr) {
+    if (!prev) return true;
+
+    return (
+        prev.phase !== curr.phase ||
+        prev.phase_sec !== curr.phase_sec ||
+        prev.lamp_state !== curr.lamp_state ||
+        prev.sync_status !== curr.sync_status ||
+        prev.movement !== curr.movement ||
+        prev.delta !== curr.delta ||
+        prev.lat !== curr.lat ||
+        prev.lng !== curr.lng ||
+        prev.connected !== curr.connected
+    );
+}
+
+function resetMap() {
+
+    // remove markers
+    Object.values(markers).forEach(m => {
+        if (m) map.removeLayer(m);
+    });
+
+    markers = {};
+
+    // remove polylines
+    polylines.forEach(p => map.removeLayer(p));
+    polylines = [];
+
+    //to prevent old arrow staying after zone switch
+    clearPhaseArrows();
+    // reset state
+    prevData = {};
+    hasFitted = false;
+}
+
+function clearPhaseArrows() {
+    phaseArrowLayer.forEach(layer => {
+        if (layer) map.removeLayer(layer);
+    });
+
+    phaseArrowLayer = [];
+}
+
+function drawArrow(from, to) {
+    const line = L.polyline([from, to], {
+        color: "lime",
+        weight: 5,
+        opacity: 0.9
+    }).addTo(map);
+
+    const arrowIcon = L.divIcon({
+        className: "",
+        html: `
+            <div style="
+                width:0;
+                height:0;
+                border-top:8px solid transparent;
+                border-bottom:8px solid transparent;
+                border-left:16px solid lime;
+                transform: rotate(${getArrowAngle(from, to)}deg);
+                transform-origin:center;
+            "></div>
+        `,
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
+    });
+
+    const arrowHead = L.marker(to, {
+        icon: arrowIcon,
+        interactive: false
+    }).addTo(map);
+
+    phaseArrowLayer.push(line);
+    phaseArrowLayer.push(arrowHead);
+}
+
+function drawActivePhaseArrows() {
+    clearPhaseArrows();
+
+    Object.values(allData).forEach(j => {
+        if (!j || !j.name) return;
+
+        // show arrow only when phase is active green
+        if (j.lamp_state !== 0) return;
+
+        const phaseConfig = PHASE_ARROWS[j.name]?.[j.phase];
+        if (!phaseConfig) return;
+
+        phaseConfig.forEach(a => {
+            drawArrow(a.from, a.to);
+        });
+    });
+}
+
+function getArrowAngle(from, to) {
+    const dy = to[0] - from[0];
+    const dx = to[1] - from[1];
+
+    return Math.atan2(dy, dx) * 180 / Math.PI * -1;
+}
+
+//draw junctions markers
+function drawMap() {
+
+    if (!allData || Object.keys(allData).length === 0) return;
+
+    Object.entries(allData).forEach(([ip, j]) => {
+
+        if (j.lat == null || j.lng == null) return;
+
+        const prev = prevData[ip];
+
+        // 🔥 skip if nothing changed
+        if (prev && !hasChanged(prev, j)) {
+            return;
+        }
+
+        if (!markers[ip]) {
+            createMarker(ip, j);
+            updateTooltip(markers[ip], j);
+            updateTooltipVisibility();
+        } else {
+            updateMarker(ip, j, prev);
+        }
+
+        // refresh phase arrow
+        //clearPhaseArrows(); //replace by vehicle animation
+        //save last state
+        prevData[ip] = { ...j };
+
+    });
+
+
+
+    drawCorridor();
+    //drawActivePhaseArrows(); //disable, replace by vehicle animation
+
+    spawnVehicle();
+
+    // 🔥 AUTO ZOOM TO SHOW ALL MARKERS
+    let group = [];
+
+    Object.values(markers).forEach(m => {
+        if (m && m.getLatLng) {
+            group.push(m.getLatLng());
+        }
+    });
+
+    if (group.length > 0 && !hasFitted) {
+        map.fitBounds(group);
+        hasFitted = true;
+    }
+
+    //console.log("ALL DATA:", allData);
+    updateTooltipVisibility();
+}
+
+async function drawRoute(from, to) {
+
+    const url = `https://router.project-osrm.org/route/v1/driving/` +
+        `${from.lng},${from.lat};${to.lng},${to.lat}` +
+        `?overview=full&geometries=geojson`;
+
+    try {
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (!data.routes || !data.routes.length) return;
+
+        const coords = data.routes[0].geometry.coordinates;
+
+        // convert [lng,lat] → [lat,lng]
+        const latlngs = coords.map(c => [c[1], c[0]]);
+
+        const line = L.polyline(latlngs, {
+            color: 'blue'
+        }).addTo(map);
+
+        polylines.push(line);
+
+    } catch (err) {
+        console.log("Route error:", err);
+    }
+}
+
+//to get route coordinates
+async function getRouteCoords(from, to) {
+
+    const key = `${from.name}->${to.name}`;
+
+    if (ROUTES[key]) {
+        return ROUTES[key].path;
+    }
+
+    console.log("No route found for", key);
+    return null;
+}
+
+//draw corridor lines
+function drawCorridor() {
+    polylines.forEach(p => map.removeLayer(p));
+    polylines = [];
+
+    if (!SHOW_ROUTE) return;
+
+    corridor.forEach(link => {
+        const key = `${link.from}->${link.to}`;
+        const route = ROUTES[key];
+
+        if (!route || !route.path || route.path.length < 2) return;
+
+        const line = L.polyline(route.path, {
+            color: "blue",
+            weight: 4,
+            opacity: 0.8
+        }).addTo(map);
+
+        polylines.push(line);
+    });
+}
+
+//pulse animation
+function createPulse(lat, lng) {
+
+    let pulse = L.circleMarker([lat, lng], {
+        radius: 5,
+        color: "yellow",
+        fillOpacity: 1
+    }).addTo(map);
+
+    vehicleLayer.push(pulse);
+
+    setTimeout(() => {
+        map.removeLayer(pulse);
+    }, 5000);
+}
+
+//animate along corridor
+function animatePulse(from, to, duration) {
+
+    let marker = L.circleMarker([from.lat, from.lng], {
+        radius: 6,
+        color: "yellow",
+        fillOpacity: 1
+    }).addTo(map);
+
+    let start = Date.now();
+
+    function move() {
+
+        let t = (Date.now() - start) / duration;
+
+        if (t > 1) {
+            map.removeLayer(marker);
+            return;
+        }
+
+        let lat = from.lat + (to.lat - from.lat) * t;
+        let lng = from.lng + (to.lng - from.lng) * t;
+
+        marker.setLatLng([lat, lng]);
+
+        requestAnimationFrame(move);
+    }
+
+    move();
+}
+
+//build ordered corridor
+function buildCorridorNodes() {
+    if (!corridor || corridor.length === 0) return [];
+
+    let nodes = [];
+    nodes.push(corridor[0].from);
+
+    corridor.forEach(link => {
+        nodes.push(link.to);
+    });
+
+    return nodes;
+}
+
+//safe junction lookout
+function getJunctionByName(name) {
+    return Object.values(allData).find(j => j.name === name);
+}
+
+//to spawn vehicles
+function spawnVehicle() {
+    if (!corridor || corridor.length === 0) return;
+    if (vehicles.length > 2) return;
+
+    const link = corridor[0];
+    const key = `${link.from}->${link.to}`;
+    const route = ROUTES[key];
+
+    if (!route || !route.path || route.path.length < 2) return;
+
+    const from = getJunctionByName(link.from);
+    const to = getJunctionByName(link.to);
+
+    if (!from || !to) return;
+
+    const marker = L.marker(route.path[0], {
+        icon: carIcon,
+        rotationAngle: 0,
+        rotationOrigin: "center center"
+    }).addTo(map);
+
+    if (route.path.length >= 2 && marker.setRotationAngle) {
+        marker.setRotationAngle(getBearing(route.path[0], route.path[1]));
+    }
+    
+    const vehicle = {
+        index: 0,
+        marker: marker,
+        state: "WAITING",
+        routeKey: key
+    };
+
+    vehicles.push(vehicle);
+
+    moveVehicle(vehicle, marker).finally(() => {
+        map.removeLayer(marker);
+        vehicles = vehicles.filter(v => v !== vehicle);
+    });
+}
+
+//movement logic junction to junction with phase check
+async function moveVehicle(vehicle, marker) {
+
+    const nodes = buildCorridorNodes();
+
+    while (vehicle.index < nodes.length - 1) {
+
+        let fromName = nodes[vehicle.index];
+        let toName   = nodes[vehicle.index + 1];
+
+        let from = getJunctionByName(fromName);
+        let to   = getJunctionByName(toName);
+
+        if (!from || !to) return;
+
+        //STEP A — get linking phase of CURRENT junction (FROM)
+        function getLinkPhase(fromName, toName) {
+            const key = `${fromName}->${toName}`;
+            return ROUTES[key]?.link_phase;
+        }
+
+        let linkPhase = getLinkPhase(from.name, to.name);
+
+        const routeKey = `${from.name}->${to.name}`;
+        const route = ROUTES[routeKey];
+
+        if (route && route.path && route.path.length >= 2 && marker.setRotationAngle) {
+            marker.setRotationAngle(getBearing(route.path[0], route.path[1]));
+        }
+
+        if (linkPhase === undefined) {
+            console.log("No link phase for", from.name);
+            return;
+        }
+
+        //STEP B — WAIT until correct phase BEFORE moving
+        if (
+            from.lamp_state !== 0 ||
+            from.phase !== linkPhase
+        ) {
+            vehicle.state = "WAITING";
+            //marker.setStyle({ color: "red" });
+
+            console.log("WAITING at", from.name, "for phase", linkPhase);
+
+            await waitForLinkPhase(from.name, linkPhase);
+        }
+
+        //STEP C — MOVE only after green linking phase
+        vehicle.state = "MOVING";
+        //marker.setStyle({ color: "green" });
+
+        console.log("MOVING from", from.name, "to", to.name);
+
+        await travelSegment(vehicle, marker, from, to);
+
+        vehicle.index++;
+    }
+
+    // cleanup after finish
+    map.removeLayer(marker);
+}
+
+// animation angle helper
+function getBearing(start, end) {
+    const lat1 = start[0] * Math.PI / 180;
+    const lat2 = end[0] * Math.PI / 180;
+    const dLng = (end[1] - start[1]) * Math.PI / 180;
+
+    const y = Math.sin(dLng) * Math.cos(lat2);
+    const x =
+        Math.cos(lat1) * Math.sin(lat2) -
+        Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+
+    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+
+//travel animation
+async function travelSegment(vehicle, marker, from, to) {
+
+    const coords = await getRouteCoords(from, to);
+
+    if (!coords || coords.length < 2) {
+        console.log("NO ROUTE → fallback");
+        return fallbackStraight(vehicle, marker, from, to);
+    }
+
+    const key = `${from.name}->${to.name}`;
+    const route = ROUTES[key];
+    const linkPhase = route?.link_phase;
+
+    let speed = 13.9; // meters per second, about 50 km/h
+
+    let distances = [];
+    let totalDist = 0;
+
+    for (let i = 1; i < coords.length; i++) {
+        let d = map.distance(coords[i - 1], coords[i]);
+        distances.push(d);
+        totalDist += d;
+    }
+
+    let duration = (totalDist / speed) * 1000;
+    let startTime = performance.now();
+
+    return new Promise(resolve => {
+
+        function step(now) {
+
+            let current = getJunctionByName(from.name);
+
+            if (
+                !current ||
+                current.lamp_state !== 0 ||
+                current.phase !== linkPhase
+            ) {
+                console.log("PHASE LOST → snapping to junction");
+                marker.setLatLng([from.lat, from.lng]);
+                resolve();
+                return;
+            }
+
+            let elapsed = now - startTime;
+            let progress = Math.min(elapsed / duration, 1);
+            let targetDist = progress * totalDist;
+
+            let travelled = 0;
+
+            for (let i = 1; i < coords.length; i++) {
+                let segDist = distances[i - 1];
+
+                if (travelled + segDist >= targetDist) {
+                    let segProgress = (targetDist - travelled) / segDist;
+
+                    let start = coords[i - 1];
+                    let end = coords[i];
+
+                    if (marker.setRotationAngle) {
+                        marker.setRotationAngle(getBearing(start, end));
+                    }
+
+                    let lat = start[0] + (end[0] - start[0]) * segProgress;
+                    let lng = start[1] + (end[1] - start[1]) * segProgress;
+
+                    marker.setLatLng([lat, lng]);
+                    break;
+                }
+
+                travelled += segDist;
+            }
+
+            if (progress < 1) {
+                requestAnimationFrame(step);
+            } else {
+                marker.setLatLng(coords[coords.length - 1]);
+                resolve();
+            }
+        }
+
+        requestAnimationFrame(step);
+    });
+}
+
+
+function fallbackStraight(vehicle, marker, from, to) {
+    return new Promise(resolve => {
+
+        let speed = 13.9;
+
+        let dx = to.lat - from.lat;
+        let dy = to.lng - from.lng;
+        let dist = Math.sqrt(dx*dx + dy*dy) * 111000;
+
+        let duration = (dist / speed) * 1000;
+        let start = Date.now();
+
+        function step() {
+            let t = (Date.now() - start) / duration;
+
+            if (t >= 1) {
+                marker.setLatLng([to.lat, to.lng]);
+                resolve();
+                return;
+            }
+
+            let lat = from.lat + (to.lat - from.lat) * t;
+            let lng = from.lng + (to.lng - from.lng) * t;
+
+            marker.setLatLng([lat, lng]);
+
+            requestAnimationFrame(step);
+        }
+
+        step();
+    });
+}
+
+//to wait for correct phase
+function waitForLinkPhase(junctionName, linkPhase) {
+    return new Promise(resolve => {
+
+        let interval = setInterval(() => {
+
+            let j = getJunctionByName(junctionName);
+
+            if (
+                j &&
+                j.lamp_state === 0 &&
+                j.phase === linkPhase
+            ) {
+                clearInterval(interval);
+                resolve();
+            }
+
+        }, 200);
+    });
+}
+
+//looping animation
+async function mainLoop() {
+    await updateData();
+    renderMap();
+}
+
+setInterval(updateData, 1000);   // fetch only
+setInterval(renderMap, 500);     // render faster but no fetch
+setInterval(() => {             // vehicle render loop
+    spawnVehicle();
+}, 3000);
+
+loadZones();
+
+</script>
+
+</body>
+</html>
