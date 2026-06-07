@@ -13,3 +13,4 @@ __pycache__/
 *.pyc
 /.tmp.driveupload
 /.tmp.drivedownload
+/static
