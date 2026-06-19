@@ -4,8 +4,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Green Wave Map</title>
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate-src.js"></script>
+
 <script src="https://unpkg.com/leaflet-rotatedmarker/leaflet.rotatedMarker.js"></script>
 
 <style>
@@ -21,12 +28,80 @@ body {
 
 .top-bar {
     position: absolute;
-    top:10px;
-    left:80px;
-    z-index:1000;
-    background:white;
-    padding:10px;
-    border-radius:8px;
+    top: 10px;
+    left: 80px;
+    z-index: 1000;
+    background: white;
+    padding: 10px;
+    border-radius: 8px;
+
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.25);
+}
+
+.map-rotate-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.map-rotate-btn,
+.map-bearing-btn {
+    height: 36px;
+    min-width: 36px;
+    padding: 0 8px;
+
+    border: 1px solid #ccc;
+    border-radius: 6px;
+
+    background: #333;
+    color: white;
+
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.map-bearing-btn {
+    min-width: 58px;
+    font-size: 13px;
+}
+
+.map-rotate-btn:hover,
+.map-bearing-btn:hover {
+    background: #555;
+}
+
+.map-rotate-btn:active,
+.map-bearing-btn:active {
+    transform: scale(0.96);
+}
+
+@media (max-width: 600px) {
+    .top-bar {
+        left: 55px;
+        right: 10px;
+        padding: 7px;
+    }
+
+    .top-bar select {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .map-rotate-btn {
+        min-width: 34px;
+        width: 34px;
+        padding: 0;
+    }
+
+    .map-bearing-btn {
+        min-width: 52px;
+        padding: 0 5px;
+    }
 }
 </style>
 </head>
@@ -35,14 +110,52 @@ body {
 
 <div class="top-bar">
     <select id="zoneSelect"></select>
+
+    <div class="map-rotate-controls">
+        <button
+            type="button"
+            class="map-rotate-btn"
+            onclick="rotateMap(-15)"
+            title="Rotate map left"
+        >
+            ↶
+        </button>
+
+        <button
+            type="button"
+            id="mapBearingButton"
+            class="map-bearing-btn"
+            onclick="resetMapRotation()"
+            title="Reset map to north"
+        >
+            N 0°
+        </button>
+
+        <button
+            type="button"
+            class="map-rotate-btn"
+            onclick="rotateMap(15)"
+            title="Rotate map right"
+        >
+            ↷
+        </button>
+    </div>
 </div>
 
 <div id="map"></div>
 
 <script>
 
-let map = L.map('map').setView([1.5,103.7], 12);
-//L.marker([3.0567, 101.5919]).addTo(map);
+let map = L.map("map", {
+    rotate: true,
+    bearing: 0,
+
+    // Keep gesture rotation disabled initially.
+    // Rotation will be controlled using buttons.
+    touchRotate: false,
+    shiftKeyRotate: false,
+    rotateControl: false
+}).setView([1.5, 103.7], 12);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution:'© OpenStreetMap'
@@ -67,7 +180,8 @@ let vehicleMarkers = [];
 let phaseArrowLayer = [];
 let SHOW_ROUTE = false;
 
-const TOOLTIP_ZOOM_THRESHOLD = 16;
+const TOOLTIP_ZOOM_THRESHOLD = 12;
+const MAP_ROTATION_STEP = 15;
 
 const PHASE_ARROWS = {
     "KHTP4": {
@@ -100,7 +214,7 @@ const PHASE_ARROWS = {
 };
 
 
-// 🔥 DEFINE LINKING PHASE PER JUNCTION (TEMP)
+// DEFINE LINKING PHASE PER JUNCTION (TEMP)
 const LINK_PHASES = {
     // use EXACT names from your system
     "Kilang Kayu": 2,
@@ -179,7 +293,7 @@ const carIcon = L.icon({
     iconAnchor: [15, 15]
 });
 
-//helper
+
 function getOffset(fromName, toName) {
     return OFFSETS[`${fromName}->${toName}`];
 }
@@ -326,6 +440,54 @@ function renderMap() {
     drawMap();
 }
 
+function normalizeMapBearing(value) {
+    return ((value % 360) + 360) % 360;
+}
+
+function updateMapBearingDisplay() {
+    const button = document.getElementById("mapBearingButton");
+
+    if (!button || typeof map.getBearing !== "function") {
+        return;
+    }
+
+    const bearing = Math.round(
+        normalizeMapBearing(map.getBearing())
+    );
+
+    button.textContent = `N ${bearing}°`;
+}
+
+function setMapRotation(bearing) {
+    if (typeof map.setBearing !== "function") {
+        console.error("Leaflet.Rotate is not loaded.");
+        return;
+    }
+
+    map.setBearing(
+        normalizeMapBearing(bearing)
+    );
+
+    updateMapBearingDisplay();
+}
+
+function rotateMap(change) {
+    if (typeof map.getBearing !== "function") {
+        console.error("Leaflet.Rotate is not loaded.");
+        return;
+    }
+
+    const currentBearing = map.getBearing();
+
+    setMapRotation(currentBearing + change);
+}
+
+function resetMapRotation() {
+    setMapRotation(0);
+}
+
+map.on("rotate", updateMapBearingDisplay);
+
 //to get mode, sync state
 function getModeText(movement) {
     if (!movement) return "-";
@@ -354,7 +516,8 @@ function createMarker(ip, j) {
 
     markers[ip] = L.marker([j.lat, j.lng], {
         draggable: false,
-        icon: getIcon(j.lamp_state)
+        icon: getIcon(j.lamp_state),
+        rotateWithView: false
     }).addTo(map);
 }
 
@@ -741,7 +904,8 @@ function spawnVehicle() {
     const marker = L.marker(route.path[0], {
         icon: carIcon,
         rotationAngle: 0,
-        rotationOrigin: "center center"
+        rotationOrigin: "center center",
+        rotateWithView: true
     }).addTo(map);
 
     if (route.path.length >= 2 && marker.setRotationAngle) {
