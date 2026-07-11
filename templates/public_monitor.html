@@ -365,9 +365,8 @@ tr:hover {
     line-height: 1.4;
     text-align: right;
     cursor: default;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 .link-ack-tooltip {
@@ -1038,9 +1037,16 @@ function renderLinkAckStatus() {
         ? "Start"
         : "Stop";
 
+    const latestControllerTime =
+        latest.controller_time || "-";
+
+    const latestServerTime =
+        latest.server_time || "-";
+
     latestElement.textContent =
-        `${latest.junction} — Linking ${latestAction} received at ` +
-        `${latest.controller_time}`;
+        `${latest.junction} — Linking ${latestAction} received | ` +
+        `C.T "${latestControllerTime}" | ` +
+        `S.T "${latestServerTime}"`;
 
     tooltipContent.innerHTML = "";
 
@@ -1056,9 +1062,16 @@ function renderLinkAckStatus() {
             ? "Start"
             : "Stop";
 
+        const controllerTime =
+            record.controller_time || "-";
+
+        const serverTime =
+            record.server_time || "-";
+
         row.textContent =
-            `${record.junction} — Linking ${action} received at ` +
-            `${record.controller_time}`;
+            `${record.junction} — Linking ${action} received | ` +
+            `C.T "${controllerTime}" | ` +
+            `S.T "${serverTime}"`;
 
         tooltipContent.appendChild(row);
     });
