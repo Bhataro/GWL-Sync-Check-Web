@@ -344,6 +344,81 @@ tr:hover {
     font-size: 13px;
 }
 
+.link-ack-tooltip-wrap {
+    position: relative;
+    display: flex;
+    flex: 1 1 280px;
+    min-width: 260px;
+    justify-content: flex-end;
+    margin-left: auto;
+}
+
+.latest-link-ack {
+    max-width: 100%;
+    padding: 10px 12px;
+    background: #f8f8f8;
+    color: #333;
+    border: 1px solid #d5d5d5;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: bold;
+    line-height: 1.4;
+    text-align: right;
+    cursor: default;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.link-ack-tooltip {
+    display: none;
+    position: absolute;
+    top: 115%;
+    right: 0;
+    z-index: 60;
+    width: 390px;
+    max-width: 90vw;
+    max-height: 320px;
+    overflow-y: auto;
+    padding: 10px;
+    background: white;
+    color: #333;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.link-ack-tooltip-wrap:hover .link-ack-tooltip {
+    display: block;
+}
+
+.link-ack-tooltip-title {
+    margin-bottom: 6px;
+    font-weight: bold;
+}
+
+.link-ack-tooltip-row {
+    padding: 6px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.link-ack-tooltip-row:last-child {
+    border-bottom: none;
+}
+
+body.dark-mode .latest-link-ack,
+body.dark-mode .link-ack-tooltip {
+    background: #1e1e1e;
+    color: #eaeaea;
+    border-color: #444;
+}
+
+body.dark-mode .link-ack-tooltip-row {
+    border-bottom-color: #333;
+}
+
 /* -----------------------------
    PHONE COMPACT TABLE MONITOR
 ----------------------------- */
@@ -478,7 +553,29 @@ tr:hover {
     }
 
     .zone-select-row {
-    width: 100%;
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .link-ack-tooltip-wrap {
+        flex: 1 1 100%;
+        width: 100%;
+        min-width: 0;
+        margin-left: 0;
+        justify-content: stretch;
+    }
+
+    .latest-link-ack {
+        width: 100%;
+        text-align: left;
+        white-space: normal;
+    }
+
+    .link-ack-tooltip {
+        left: 0;
+        right: auto;
+        width: 100%;
+        max-width: 100%;
     }
 
     .zone-select-row select {
@@ -669,11 +766,28 @@ body.dark-mode .footer-note {
                 <div class="schedule-tooltip-title">GWL Schedule</div>
                 <div id="scheduleTooltipContent">Hover to load schedule...</div>
             </div>
+
+            <button type="button" class="map-pin-btn" onclick="openSelectedZoneMap()" title="Open selected zone map">
+                📍
+            </button>
         </div>
 
-        <button type="button" class="map-pin-btn" onclick="openSelectedZoneMap()" title="Open selected zone map">
-            📍
-        </button>
+        <div class="link-ack-tooltip-wrap">
+            <div id="latestLinkAck" class="latest-link-ack">
+                No linking acknowledgement received
+            </div>
+
+            <div class="link-ack-tooltip">
+                <div class="link-ack-tooltip-title">
+                    Recent linking acknowledgements
+                </div>
+
+                <div id="linkAckTooltipContent">
+                    No linking acknowledgement received
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>
 
@@ -700,6 +814,7 @@ body.dark-mode .footer-note {
 <script>
 let currentZone = null;
 let allData = {};
+let linkAckHistory = [];
 let requestToken = 0;
 let isLoading = false;
 let currentZoneVersion = 0;
@@ -882,6 +997,61 @@ async function loadZones() {
     }
 }
 
+function renderLinkAckStatus() {
+    const latestElement = document.getElementById("latestLinkAck");
+    const tooltipContent = document.getElementById(
+        "linkAckTooltipContent"
+    );
+
+    if (!latestElement || !tooltipContent) {
+        return;
+    }
+
+    if (
+        !Array.isArray(linkAckHistory)
+        || linkAckHistory.length === 0
+    ) {
+        latestElement.textContent =
+            "No linking acknowledgement received";
+
+        tooltipContent.textContent =
+            "No linking acknowledgement received";
+
+        return;
+    }
+
+    const latest = linkAckHistory[linkAckHistory.length - 1];
+
+    const latestAction = latest.action === "START"
+        ? "Start"
+        : "Stop";
+
+    latestElement.textContent =
+        `${latest.junction} — Linking ${latestAction} received at ` +
+        `${latest.controller_time}`;
+
+    tooltipContent.innerHTML = "";
+
+    const recentRecords = [...linkAckHistory]
+        .reverse()
+        .slice(0, 20);
+
+    recentRecords.forEach(record => {
+        const row = document.createElement("div");
+        row.className = "link-ack-tooltip-row";
+
+        const action = record.action === "START"
+            ? "Start"
+            : "Stop";
+
+        row.textContent =
+            `${record.junction} — Linking ${action} received at ` +
+            `${record.controller_time}`;
+
+        tooltipContent.appendChild(row);
+    });
+}
+
 async function loadData() {
     if (!currentZone || isLoading) return;
 
@@ -911,6 +1081,12 @@ async function loadData() {
 
         const newData = result.data || {};
 
+        linkAckHistory = Array.isArray(result.link_ack_history)
+            ? result.link_ack_history
+            : [];
+
+        renderLinkAckStatus();
+
         Object.entries(newData).forEach(([ip, j]) => {
             allData[ip] = {
                 ...allData[ip],
@@ -937,8 +1113,11 @@ function zoneChanged() {
 
     currentZoneVersion++;
     allData = {};
+    linkAckHistory = [];
     lastUpdateTime = 0;
     isLoading = false;
+
+    renderLinkAckStatus();
 
     document.getElementById("tableBody").innerHTML = "";
 
