@@ -758,19 +758,31 @@ body.dark-mode .footer-note {
         <select id="zoneSelect" onchange="zoneChanged()"></select>
 
         <div class="schedule-tooltip-wrap">
-            <button type="button" class="schedule-help-btn" onmouseenter="loadScheduleTooltip()">
+            <button
+                type="button"
+                class="schedule-help-btn"
+                onmouseenter="loadScheduleTooltip()"
+                title="View GWL schedule"
+            >
                 🕒
             </button>
 
             <div class="schedule-tooltip" id="scheduleTooltip">
                 <div class="schedule-tooltip-title">GWL Schedule</div>
-                <div id="scheduleTooltipContent">Hover to load schedule...</div>
+                <div id="scheduleTooltipContent">
+                    Hover to load schedule...
+                </div>
             </div>
-
-            <button type="button" class="map-pin-btn" onclick="openSelectedZoneMap()" title="Open selected zone map">
-                📍
-            </button>
         </div>
+
+        <button
+            type="button"
+            class="map-pin-btn"
+            onclick="openSelectedZoneMap()"
+            title="Open selected zone map"
+        >
+            📍
+        </button>
 
         <div class="link-ack-tooltip-wrap">
             <div id="latestLinkAck" class="latest-link-ack">

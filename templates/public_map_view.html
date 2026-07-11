@@ -266,22 +266,22 @@ const OFFSETS = {
 
 const icons = {
     green: L.icon({
-        iconUrl: "/static/icons/green_p.png",
+        iconUrl: "{{ url_for('static', filename='icons/green.png') }}",
         iconSize: [30, 30],
         iconAnchor: [15, 30]
     }),
     amber: L.icon({
-        iconUrl: "/static/icons/amber_p.png",
+        iconUrl: "{{ url_for('static', filename='icons/amber.png') }}",
         iconSize: [30, 30],
         iconAnchor: [15, 30]
     }),
     red: L.icon({
-        iconUrl: "/static/icons/red_p.png",
+        iconUrl: "{{ url_for('static', filename='icons/red.png') }}",
         iconSize: [30, 30],
         iconAnchor: [15, 30]
     }),
     flash: L.icon({
-        iconUrl: "/static/icons/flash_p.png",
+        iconUrl: "{{ url_for('static', filename='icons/flash.png') }}",
         iconSize: [30, 30],
         iconAnchor: [15, 30]
     })
