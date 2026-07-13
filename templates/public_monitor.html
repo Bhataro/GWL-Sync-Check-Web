@@ -362,10 +362,10 @@ tr:hover {
     border-radius: 8px;
     font-size: 14px;
     font-weight: bold;
-    line-height: 1.4;
+    line-height: 1.5;
     text-align: right;
     cursor: default;
-    white-space: normal;
+    white-space: pre-line;
     overflow-wrap: anywhere;
 }
 
@@ -399,8 +399,11 @@ tr:hover {
 }
 
 .link-ack-tooltip-row {
-    padding: 6px 0;
+    padding: 8px 0;
     border-bottom: 1px solid #eee;
+    line-height: 1.5;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
 }
 
 .link-ack-tooltip-row:last-child {
@@ -567,7 +570,7 @@ body.dark-mode .link-ack-tooltip-row {
     .latest-link-ack {
         width: 100%;
         text-align: left;
-        white-space: normal;
+        white-space: pre-line;
     }
 
     .link-ack-tooltip {
@@ -1044,7 +1047,7 @@ function renderLinkAckStatus() {
         latest.server_time || "-";
 
     latestElement.textContent =
-        `${latest.junction} — Linking ${latestAction} received | ` +
+        `${latest.junction} - Linking ${latestAction} Received:\n` +
         `C.T "${latestControllerTime}" | ` +
         `S.T "${latestServerTime}"`;
 
@@ -1069,7 +1072,7 @@ function renderLinkAckStatus() {
             record.server_time || "-";
 
         row.textContent =
-            `${record.junction} — Linking ${action} received | ` +
+            `${record.junction} - Linking ${action} Received:\n` +
             `C.T "${controllerTime}" | ` +
             `S.T "${serverTime}"`;
 
